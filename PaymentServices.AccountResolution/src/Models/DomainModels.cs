@@ -2,12 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace PaymentServices.AccountResolution.Models;
 
-// ---------------------------------------------------------------------------
-// These models mirror the existing TptchService domain entities
-// stored in the tptch Cosmos DB database.
-// Read-only in the AccountResolution flow — never written to during resolution.
-// ---------------------------------------------------------------------------
-
 public abstract class CosmosEntity
 {
     [JsonPropertyName("id")]
@@ -20,10 +14,6 @@ public abstract class CosmosEntity
     public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// Maps to the `accounts` container.
-/// Partition key: /accountNumber
-/// </summary>
 public class TptchAccount : CosmosEntity
 {
     [JsonPropertyName("kind")]
@@ -42,10 +32,6 @@ public class TptchAccount : CosmosEntity
     public string? PlatformId { get; set; }
 }
 
-/// <summary>
-/// Maps to the `remoteAccounts` container.
-/// Partition key: /accountNumber
-/// </summary>
 public class TptchRemoteAccount : CosmosEntity
 {
     [JsonPropertyName("accountNumber")]
@@ -57,6 +43,9 @@ public class TptchRemoteAccount : CosmosEntity
     [JsonPropertyName("fiName")]
     public string FiName { get; set; } = string.Empty;
 
+    [JsonPropertyName("fiAddress")]
+    public TptchAddress? FiAddress { get; set; }
+
     [JsonPropertyName("ledgerId")]
     public string? LedgerId { get; set; }
 
@@ -67,10 +56,27 @@ public class TptchRemoteAccount : CosmosEntity
     public string? Nickname { get; set; }
 }
 
-/// <summary>
-/// Maps to the `customers` container.
-/// Partition key: /id
-/// </summary>
+public class TptchAddress
+{
+    [JsonPropertyName("line1")]
+    public string? Line1 { get; set; }
+
+    [JsonPropertyName("city")]
+    public string? City { get; set; }
+
+    [JsonPropertyName("state")]
+    public string? State { get; set; }
+
+    [JsonPropertyName("country")]
+    public string? Country { get; set; }
+
+    [JsonPropertyName("postalCode")]
+    public string? PostalCode { get; set; }
+
+    [JsonPropertyName("isPhysical")]
+    public bool IsPhysical { get; set; } = true;
+}
+
 public class TptchCustomer : CosmosEntity
 {
     [JsonPropertyName("name")]
@@ -87,6 +93,13 @@ public class TptchCustomer : CosmosEntity
 
     [JsonPropertyName("remoteAccountIds")]
     public List<string> RemoteAccountIds { get; set; } = [];
+
+    /// <summary>
+    /// Alloy entity token — stored after entity creation at onboarding.
+    /// Used by Compliance function for KYC/TMS checks.
+    /// </summary>
+    [JsonPropertyName("alloyEntityToken")]
+    public string? AlloyEntityToken { get; set; }
 }
 
 public class CustomerName
@@ -101,10 +114,6 @@ public class CustomerName
     public string? Company { get; set; }
 }
 
-/// <summary>
-/// Maps to the `platforms` container.
-/// Partition key: /id
-/// </summary>
 public class TptchPlatform : CosmosEntity
 {
     [JsonPropertyName("fintechId")]
@@ -114,13 +123,61 @@ public class TptchPlatform : CosmosEntity
     public List<string> CustomerIds { get; set; } = [];
 }
 
-// ---------------------------------------------------------------------------
-// Resolution result — returned by AccountResolutionService
-// ---------------------------------------------------------------------------
+/// <summary>
+/// Maps to the `ledgers` container in the `ledgers` database.
+/// Matches the existing ledger document structure.
+/// Partition key: /id
+/// </summary>
+public class TptchLedger
+{
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+
+    [JsonPropertyName("AccountNumber")]
+    public string AccountNumber { get; set; } = string.Empty;
+
+    [JsonPropertyName("Currency")]
+    public LedgerCurrency Currency { get; set; } = new();
+
+    [JsonPropertyName("LastBalance")]
+    public decimal LastBalance { get; set; } = 0;
+
+    [JsonPropertyName("Metadata")]
+    public LedgerMetadata Metadata { get; set; } = new();
+
+    [JsonPropertyName("LedgerType")]
+    public string LedgerType { get; set; } = "prefund-ledger-v2";
+
+    [JsonPropertyName("CreatedAt")]
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+    [JsonPropertyName("UpdatedAt")]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class LedgerCurrency
+{
+    [JsonPropertyName("Name")]
+    public string Name { get; set; } = "USD";
+
+    [JsonPropertyName("Symbol")]
+    public string Symbol { get; set; } = "USD";
+
+    [JsonPropertyName("BaseUnit")]
+    public string BaseUnit { get; set; } = "Cent";
+
+    [JsonPropertyName("Decimals")]
+    public int Decimals { get; set; } = 2;
+}
+
+public class LedgerMetadata
+{
+    [JsonPropertyName("accountId")]
+    public string? AccountId { get; set; }
+}
 
 /// <summary>
-/// Result of resolving a single account party (source or destination).
-/// Contains all IDs needed by downstream pipeline functions.
+/// Result of resolving a single account party.
 /// </summary>
 public sealed class AccountResolutionResult
 {

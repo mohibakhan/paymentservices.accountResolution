@@ -17,9 +17,15 @@
     "app:AppSettings:COSMOS_PLATFORMS_CONTAINER": "platforms",
     "app:AppSettings:COSMOS_TRANSACTIONS_CONTAINER": "tchSendTransactions",
 
+    "app:AppSettings:COSMOS_LEDGER_DATABASE": "ledgers",
+    "app:AppSettings:COSMOS_LEDGER_CONTAINER": "ledgers",
+
     "app:AppSettings:SERVICE_BUS_CONNSTRING": "<service-bus-connection-string>",
     "app:AppSettings:SERVICE_BUS_TOPIC": "payment-processing",
     "app:AppSettings:SERVICE_BUS_SUBSCRIPTION": "account-resolution",
+
+    "app:AppSettings:REDIS_CONNSTRING": "<redis-connection-string>",
+    "app:AppSettings:REDIS_ACCOUNT_CACHE_TTL_HOURS": "1",
 
     "telemetry:APP_INSIGHTS_CUSTOM_PROP_EVOLVE_TRAIN": "Digital",
     "telemetry:APP_INSIGHTS_CUSTOM_PROP_EVOLVE_TEAM": "Services"
