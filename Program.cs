@@ -12,12 +12,16 @@ using PaymentServices.AccountResolution.Services;
 using PaymentServices.Shared.Extensions;
 using Serilog;
 using Serilog.Events;
+using StackExchange.Redis;
+using CosmosContainer = Microsoft.Azure.Cosmos.Container;
 
 namespace PaymentServices.AccountResolution;
 
 [ExcludeFromCodeCoverage]
 public static class Program
 {
+    private const string Prefix = "accountResolution:AppSettings";
+
     public static async Task Main(string[] args)
     {
         var host = new HostBuilder()
@@ -34,22 +38,35 @@ public static class Program
                 services.ConfigureFunctionsApplicationInsights();
 
                 // Shared infrastructure
-                services.AddPaymentAppSettings(config);
-                services.AddPaymentCosmosClient(config);
-                services.AddPaymentServiceBusPublisher(config);
+                services.AddPaymentAppSettings(config, Prefix);
+                services.AddPaymentCosmosClient(config, Prefix);
+                services.AddPaymentServiceBusPublisher(config, Prefix);
 
                 // AccountResolution-specific settings
                 services.AddOptions<AccountResolutionSettings>()
                     .Configure<IConfiguration>((settings, cfg) =>
-                        cfg.GetSection("app:AppSettings").Bind(settings));
+                        cfg.GetSection(Prefix).Bind(settings));
 
-                // Cosmos containers — reusing existing tptch containers
+                // Cosmos containers
                 RegisterCosmosContainers(services, config);
 
                 // Repositories
                 services.AddTransient<IAccountRepository, AccountRepository>();
                 services.AddTransient<ITransactionStateRepository, TransactionStateRepository>();
                 services.AddTransient<IOnboardRepository, OnboardRepository>();
+
+                // Redis cache — singleton connection, silent fallback if unavailable
+                var redisConnString = config[$"{Prefix}:REDIS_CONNSTRING"] ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(redisConnString))
+                {
+                    services.AddSingleton<IConnectionMultiplexer>(_ =>
+                        ConnectionMultiplexer.Connect(redisConnString));
+                    services.AddSingleton<ICacheService, RedisCacheService>();
+                }
+                else
+                {
+                    services.AddSingleton<ICacheService, NoOpCacheService>();
+                }
 
                 // Services
                 services.AddTransient<IAccountResolutionService, AccountResolutionService>();
@@ -97,7 +114,7 @@ public static class Program
             {
                 options
                     .Connect(new Uri(appConfigUrl), credential)
-                    .Select("app:*")
+                    .Select("accountResolution:*")
                     .Select("telemetry:*")
                     .ConfigureKeyVault(kv => kv.SetCredential(credential));
             });
@@ -124,50 +141,48 @@ public static class Program
 
     private static void RegisterCosmosContainers(IServiceCollection services, IConfiguration config)
     {
-        // Read container names from config — defaults match existing tptch container names
-        var database = config["app:AppSettings:COSMOS_DATABASE"] ?? "tptch";
+        var database = config[$"{Prefix}:COSMOS_DATABASE"] ?? "tptch";
 
-        services.AddKeyedSingleton<Container>("accounts", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("accounts", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config["app:AppSettings:COSMOS_ACCOUNTS_CONTAINER"] ?? "accounts";
+            var container = config[$"{Prefix}:COSMOS_ACCOUNTS_CONTAINER"] ?? "accounts";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<Container>("remoteAccounts", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("remoteAccounts", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config["app:AppSettings:COSMOS_REMOTE_ACCOUNTS_CONTAINER"] ?? "remoteAccounts";
+            var container = config[$"{Prefix}:COSMOS_REMOTE_ACCOUNTS_CONTAINER"] ?? "remoteAccounts";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<Container>("customers", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("customers", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config["app:AppSettings:COSMOS_CUSTOMERS_CONTAINER"] ?? "customers";
+            var container = config[$"{Prefix}:COSMOS_CUSTOMERS_CONTAINER"] ?? "customers";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<Container>("platforms", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("platforms", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config["app:AppSettings:COSMOS_PLATFORMS_CONTAINER"] ?? "platforms";
+            var container = config[$"{Prefix}:COSMOS_PLATFORMS_CONTAINER"] ?? "platforms";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<Container>("transactions", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("transactions", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config["app:AppSettings:COSMOS_TRANSACTIONS_CONTAINER"] ?? "tchSendTransactions";
+            var container = config[$"{Prefix}:COSMOS_TRANSACTIONS_CONTAINER"] ?? "tchSendTransactions";
             return client.GetContainer(database, container);
         });
 
-        // Ledgers — separate database from tptch
-        services.AddKeyedSingleton<Container>("ledgers", (sp, _) =>
+        services.AddKeyedSingleton<CosmosContainer>("ledgers", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var ledgerDb = config["app:AppSettings:COSMOS_LEDGER_DATABASE"] ?? "ledgers";
-            var ledgerContainer = config["app:AppSettings:COSMOS_LEDGER_CONTAINER"] ?? "ledgers";
+            var ledgerDb = config[$"{Prefix}:COSMOS_LEDGER_DATABASE"] ?? "ledgers";
+            var ledgerContainer = config[$"{Prefix}:COSMOS_LEDGER_CONTAINER"] ?? "ledgers";
             return client.GetContainer(ledgerDb, ledgerContainer);
         });
     }
