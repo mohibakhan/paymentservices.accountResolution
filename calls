@@ -1,0 +1,56 @@
+curl --location 'https://sandbox.alloy.co/v1/events' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic <base64(api_token:api_secret)>' \
+--data '{
+    "event_type": "bank_account_created",
+    "data": {
+        "external_entity_id": "<john-doe-customer-id-from-cosmos>",
+        "external_account_id": "<john-doe-account-id-from-cosmos>",
+        "timestamp": "2026-04-30T00:00:00.000Z",
+        "account_class": "deposit",
+        "account_name": "Evolve Account",
+        "account_number": "1234567890",
+        "routing_number": "084009593",
+        "currency": "USD",
+        "status": "Active",
+        "account_balance": 0,
+        "entities": [
+            {
+                "account_holder_type": "primary",
+                "external_entity_id": "<john-doe-customer-id-from-cosmos>"
+            }
+        ],
+        "meta": {},
+        "supplemental_data": { "processor_token": "" }
+    }
+}'
+
+  curl --location 'https://sandbox.alloy.co/v1/events' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic <base64(api_token:api_secret)>' \
+--data '{
+    "event_type": "bank_account_created",
+    "data": {
+        "external_entity_id": "<jane-smith-customer-id-from-cosmos>",
+        "external_account_id": "<jane-smith-account-id-from-cosmos>",
+        "timestamp": "2026-04-30T00:00:00.000Z",
+        "account_class": "deposit",
+        "account_name": "Evolve Account",
+        "account_number": "9876543210",
+        "routing_number": "084009593",
+        "currency": "USD",
+        "status": "Active",
+        "account_balance": 0,
+        "entities": [
+            {
+                "account_holder_type": "primary",
+                "external_entity_id": "<jane-smith-customer-id-from-cosmos>"
+            }
+        ],
+        "meta": {},
+        "supplemental_data": { "processor_token": "" }
+    }
+}'
+
+
+  echo -n "your_api_token:your_api_secret" | base64
