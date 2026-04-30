@@ -1,3 +1,21 @@
+curl --location 'https://sandbox.alloy.co/v1/journeys/<individual-kyc-journey-token>/applications?fullData=true' \
+--header 'alloy-sandbox: true' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic <base64(individual_kyc_journey_token:kyc_workflow_secret)>' \
+--data '{
+    "entities": [
+        {
+            "branch_name": "persons",
+            "name_first": "John",
+            "name_last": "Doe",
+            "identifiers": {
+                "external_entity_id": "<john-doe-customer-id-from-cosmos>"
+            },
+            "meta": {}
+        }
+    ]
+}'
+
 curl --location 'https://sandbox.alloy.co/v1/events' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Basic <base64(api_token:api_secret)>' \
