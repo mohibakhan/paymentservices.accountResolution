@@ -50,10 +50,7 @@ curl --location 'https://sandbox.alloy.co/v1/events' \
         "meta": {},
         "supplemental_data": { "processor_token": "" }
     }
-
-
-[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("your_api_token:your_api_secret"))
 }'
 
-
+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("your_api_token:your_api_secret"))
   echo -n "your_api_token:your_api_secret" | base64
