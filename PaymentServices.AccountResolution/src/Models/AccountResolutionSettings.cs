@@ -24,6 +24,13 @@ public sealed class AccountResolutionSettings : AppSettings
     public string SERVICE_BUS_SUBSCRIPTION { get; set; } = "account-resolution";
 
     // -------------------------------------------------------------------------
+    // Alloy Events API
+    // -------------------------------------------------------------------------
+    public string ALLOY_BASE_URL { get; set; } = "https://sandbox.alloy.co";
+    public string ALLOY_API_TOKEN { get; set; } = string.Empty;
+    public string ALLOY_API_SECRET { get; set; } = string.Empty;
+
+    // -------------------------------------------------------------------------
     // Redis cache
     // -------------------------------------------------------------------------
 

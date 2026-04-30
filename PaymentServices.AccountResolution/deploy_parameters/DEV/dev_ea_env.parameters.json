@@ -1,0 +1,19 @@
+{
+  "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TRAIN": "Digital",
+  "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TEAM": "Services",
+
+  "accountResolution:AppSettings:COSMOS_DATABASE": "tptch",
+  "accountResolution:AppSettings:COSMOS_ACCOUNTS_CONTAINER": "accounts",
+  "accountResolution:AppSettings:COSMOS_REMOTE_ACCOUNTS_CONTAINER": "remoteAccounts",
+  "accountResolution:AppSettings:COSMOS_CUSTOMERS_CONTAINER": "customers",
+  "accountResolution:AppSettings:COSMOS_PLATFORMS_CONTAINER": "platforms",
+  "accountResolution:AppSettings:COSMOS_TRANSACTIONS_CONTAINER": "tchSendTransactions",
+  "accountResolution:AppSettings:COSMOS_LEDGER_DATABASE": "ledgers",
+  "accountResolution:AppSettings:COSMOS_LEDGER_CONTAINER": "ledgers",
+
+  "accountResolution:AppSettings:SERVICE_BUS_TOPIC": "payment-processing",
+  "accountResolution:AppSettings:SERVICE_BUS_SUBSCRIPTION": "account-resolution",
+
+  "accountResolution:AppSettings:ALLOY_BASE_URL": "https://sandbox.alloy.co",
+  "accountResolution:AppSettings:REDIS_ACCOUNT_CACHE_TTL_HOURS": "1"
+}

@@ -18,13 +18,16 @@ public interface IOnboardService
 public sealed class OnboardService : IOnboardService
 {
     private readonly IOnboardRepository _repository;
+    private readonly IAlloyEventsService _alloyEventsService;
     private readonly ILogger<OnboardService> _logger;
 
     public OnboardService(
         IOnboardRepository repository,
+        IAlloyEventsService alloyEventsService,
         ILogger<OnboardService> logger)
     {
         _repository = repository;
+        _alloyEventsService = alloyEventsService;
         _logger = logger;
     }
 
@@ -184,6 +187,14 @@ public sealed class OnboardService : IOnboardService
         _logger.LogInformation(
             "Account onboarded. AccountId={AccountId} RemoteAccountId={RemoteAccountId} LedgerId={LedgerId}",
             createdAccount.Id, createdRemoteAccount.Id, createdLedger.Id);
+
+        // Step 6 — Notify Alloy of new bank account (fire and forget)
+        await _alloyEventsService.NotifyBankAccountCreatedAsync(
+            externalEntityId: request.CustomerId,
+            externalAccountId: createdAccount.Id,
+            accountNumber: request.AccountNumber,
+            routingNumber: request.RoutingNumber,
+            cancellationToken: cancellationToken);
 
         return new OnboardAccountResponse
         {

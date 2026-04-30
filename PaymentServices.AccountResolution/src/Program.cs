@@ -69,6 +69,7 @@ public static class Program
                 // Services
                 services.AddTransient<IAccountResolutionService, AccountResolutionService>();
                 services.AddTransient<IOnboardService, OnboardService>();
+                services.AddHttpClient<IAlloyEventsService, AlloyEventsService>();
 
                 services.AddHttpClient();
                 services.AddHealthChecks();

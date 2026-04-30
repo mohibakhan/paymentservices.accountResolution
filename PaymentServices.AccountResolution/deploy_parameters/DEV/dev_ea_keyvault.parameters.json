@@ -1,0 +1,17 @@
+{
+  "accountResolution:AppSettings:COSMOS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-COSMOS-CONNSTRING"
+  },
+  "accountResolution:AppSettings:SERVICE_BUS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-SERVICE-BUS-CONNSTRING"
+  },
+  "accountResolution:AppSettings:REDIS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-REDIS-CONNSTRING"
+  },
+  "accountResolution:AppSettings:ALLOY_API_TOKEN": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-API-TOKEN"
+  },
+  "accountResolution:AppSettings:ALLOY_API_SECRET": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-API-SECRET"
+  }
+}
