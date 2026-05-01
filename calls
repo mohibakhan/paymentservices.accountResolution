@@ -1,77 +1,84 @@
-curl --location 'https://sandbox.alloy.co/v1/journeys/<individual-kyc-journey-token>/applications?fullData=true' \
---header 'alloy-sandbox: true' \
+curl --location 'http://localhost:7072/api/onboard/customer' \
 --header 'Content-Type: application/json' \
---header 'Authorization: Basic <base64(individual_kyc_journey_token:kyc_workflow_secret)>' \
 --data '{
-    "entities": [
-        {
-            "branch_name": "persons",
-            "name_first": "John",
-            "name_last": "Doe",
-            "identifiers": {
-                "external_entity_id": "<john-doe-customer-id-from-cosmos>"
-            },
-            "meta": {}
+    "fintechId": "fintech-test-001",
+    "name": {
+        "first": "Alice",
+        "last": "Johnson"
+    },
+    "address": {
+        "line1": "123 Main St",
+        "city": "Memphis",
+        "state": "TN",
+        "postalCode": "38119",
+        "country": "US"
+    }
+}'
+
+curl --location 'http://localhost:7072/api/onboard/account' \
+--header 'Content-Type: application/json' \
+--data '{
+    "customerId": "<alice-customer-id>",
+    "fintechId": "fintech-test-001",
+    "accountNumber": "1111111111",
+    "routingNumber": "084009593",
+    "fiName": "Evolve Bank and Trust"
+}'
+
+-------
+
+curl --location 'http://localhost:7072/api/onboard/customer' \
+--header 'Content-Type: application/json' \
+--data '{
+    "fintechId": "fintech-test-001",
+    "name": {
+        "first": "Bob",
+        "last": "Williams"
+    },
+    "address": {
+        "line1": "456 Oak Ave",
+        "city": "Nashville",
+        "state": "TN",
+        "postalCode": "37201",
+        "country": "US"
+    }
+}'
+
+curl --location 'http://localhost:7072/api/onboard/account' \
+--header 'Content-Type: application/json' \
+--data '{
+    "customerId": "<bob-customer-id>",
+    "fintechId": "fintech-test-001",
+    "accountNumber": "2222222222",
+    "routingNumber": "084009593",
+    "fiName": "Evolve Bank and Trust"
+}'
+
+-----
+
+curl --location 'http://localhost:7071/api/tptch/send' \
+--header 'Content-Type: application/json' \
+--data '{
+    "evolveId": "test-evolve-alice-bob-001",
+    "fintechId": "fintech-test-001",
+    "amount": "50.00",
+    "taxId": "123456789",
+    "userIsBusiness": false,
+    "sourceAccount": {
+        "accountNumber": "1111111111",
+        "routingNumber": "084009593",
+        "name": { "first": "Alice", "last": "Johnson" }
+    },
+    "destinationAccount": {
+        "accountNumber": "2222222222",
+        "routingNumber": "084009593",
+        "name": { "first": "Bob", "last": "Williams" },
+        "address": {
+            "addressLines": ["456 Oak Ave"],
+            "city": "Nashville",
+            "stateCode": "TN",
+            "postalCode": "37201",
+            "countryISOCode": "US"
         }
-    ]
-}'
-
-curl --location 'https://sandbox.alloy.co/v1/events' \
---header 'Content-Type: application/json' \
---header 'Authorization: Basic <base64(api_token:api_secret)>' \
---data '{
-    "event_type": "bank_account_created",
-    "data": {
-        "external_entity_id": "<john-doe-customer-id-from-cosmos>",
-        "external_account_id": "<john-doe-account-id-from-cosmos>",
-        "timestamp": "2026-04-30T00:00:00.000Z",
-        "account_class": "deposit",
-        "account_name": "Evolve Account",
-        "account_number": "1234567890",
-        "routing_number": "084009593",
-        "currency": "USD",
-        "status": "Active",
-        "account_balance": 0,
-        "entities": [
-            {
-                "account_holder_type": "primary",
-                "external_entity_id": "<john-doe-customer-id-from-cosmos>"
-            }
-        ],
-        "meta": {},
-        "supplemental_data": { "processor_token": "" }
     }
 }'
-
-  curl --location 'https://sandbox.alloy.co/v1/events' \
---header 'Content-Type: application/json' \
---header 'Authorization: Basic <base64(api_token:api_secret)>' \
---data '{
-    "event_type": "bank_account_created",
-    "data": {
-        "external_entity_id": "<jane-smith-customer-id-from-cosmos>",
-        "external_account_id": "<jane-smith-account-id-from-cosmos>",
-        "timestamp": "2026-04-30T00:00:00.000Z",
-        "account_class": "deposit",
-        "account_name": "Evolve Account",
-        "account_number": "9876543210",
-        "routing_number": "084009593",
-        "currency": "USD",
-        "status": "Active",
-        "account_balance": 0,
-        "entities": [
-            {
-                "account_holder_type": "primary",
-                "external_entity_id": "<jane-smith-customer-id-from-cosmos>"
-            }
-        ],
-        "meta": {},
-        "supplemental_data": { "processor_token": "" }
-    }
-}'
-
-[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("your_api_token:your_api_secret"))
-  echo -n "your_api_token:your_api_secret" | base64
-
-
-{"status_code":201,"event_request_token":"EV-LA1SPdoPn0kzGj6dKQiC","_links":{"self":{"href":"/v1/events/EV-LA1SPdoPn0kzGj6dKQiC"}},"event":{"event_type":"transaction","event_status":"PROCESSED","data":{"transaction_token":"TX-BgL66uM1Kl6ytd4pB6aU","description":"Outgoing RTP Send","card_process_mode":null,"device_type_code":null,"type_code":"RTP01","type_description":"RTP Send","is_approved":true,"approval_code":null,"is_reversal":null,"batch_identifier":"EV-LA1SPdoPn0kzGj6dKQiC","meta":null,"category":"Withdrawal","is_triggered_by_user":true,"is_international_override":null,"amount":"-100","interaction_point":"Online","status":"Completed","status_detail":"Completed - Posted","process_method":"RTP","return_code":null,"return_code_reason":null,"entry_mode":null,"iso_message":null,"response_code":null,"sec_code":null,"archived_at":null,"counterparty":{"account_number":"9876543210","cif_number":null,"account_type":null,"product_code":null,"product_name":null,"opening_date":null,"maturity_date":null,"closing_date":null,"activation_date":null,"expiration_date":null,"meta":{},"routing_number":"084009593","card_network":null,"account_name":"Evolve Account","tokenization_method":null,"merchant_category_code":null,"name_on_card":null,"account_number_last4":null,"avs":null,"account_class":"deposit","country_code":null,"description":null,"program_name":null,"unlink_timestamp":null,"currency":"USD","bank_partner":null,"account_type_status":null,"external_counterparty_id":"1e9c0832-580a-4173-ad88-453358f42446","counterparty_token":"A-AXzB9zdnRzqkzqK1axQR","merchant_category_description":null},"external_account_id":"8bf71fb5-7e74-473d-b5b0-f7d9d6c10472","account_token":"A-1LqPDyH526pAVgJl0lSX","transaction_created_date":"2026-04-30T03:26:54.633Z","transaction_latest_date":"2026-04-30T03:26:54.633Z","currency":"USD","entity_token":"P-KkbtwBpP8yFzR87H1QGK","transaction_settled_date":null,"external_entity_id":"aa1c2a5f-ae5c-431c-870c-ca093ba8358d","external_transaction_id":"test-evolve-0011"},"evaluations":[{"error":null,"evaluation_token":"S-B8ofyIjsagKGiyxmKksm","workflow_token":"D6W190taHHT5LJpjj87wFlYyp3cYRA2F","workflow_version_id":3,"prefiltered":false,"summary":{"result":"success","outcome":"Approved","outcome_reasons":[],"tags":[]},"_links":{"self":{"href":"/v1/evaluations/S-B8ofyIjsagKGiyxmKksm"}}}],"journey_applications":[]}}
