@@ -1,28 +1,332 @@
 {
-  "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TRAIN": "Digital",
-  "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TEAM": "Services",
-  "accountResolution:AppSettings:COSMOS_DATABASE": "tptch",
-  "accountResolution:AppSettings:COSMOS_ACCOUNTS_CONTAINER": "accounts",
-  "accountResolution:AppSettings:COSMOS_REMOTE_ACCOUNTS_CONTAINER": "remoteAccounts",
-  "accountResolution:AppSettings:COSMOS_CUSTOMERS_CONTAINER": "customers",
-  "accountResolution:AppSettings:COSMOS_PLATFORMS_CONTAINER": "platforms",
-  "accountResolution:AppSettings:COSMOS_TRANSACTIONS_CONTAINER": "tchSendTransactions",
-  "accountResolution:AppSettings:COSMOS_LEDGER_DATABASE": "ledgers",
-  "accountResolution:AppSettings:COSMOS_LEDGER_CONTAINER": "ledgers",
-  "accountResolution:AppSettings:SERVICE_BUS_TOPIC": "payment-processing",
-  "accountResolution:AppSettings:SERVICE_BUS_SUBSCRIPTION": "account-resolution",
-  "accountResolution:AppSettings:REDIS_ACCOUNT_CACHE_TTL_HOURS": "1"
+   "journey_application_token":"JA-dTciVtrx4jpIQHUAoM5s",
+   "external_partner_id":null,
+   "external_product_id":null,
+   "external_group_id":null,
+   "external_application_id":null,
+   "status":"data_request",
+   "sandbox":true,
+   "created_at":1777606753895,
+   "updated_at":1777606754488,
+   "closed_at":null,
+   "recent_outcome":null,
+   "complete_outcome":null,
+   "journey_application_status":"Pending",
+   "is_archived":false,
+   "is_escalated":false,
+   "is_shadow_application":false,
+   "is_part_of_shadow_test":false,
+   "is_rerun":false,
+   "archived_at":null,
+   "terminal_reconciliation_output":{
+      
+   },
+   "application_meta":null,
+   "_embedded":{
+      "rerun":{
+         
+      },
+      "reruns":[
+         
+      ],
+      "child_entities":[
+         {
+            "external_entity_identifier":"6ee038fc-fd01-40e3-82a1-7140e964f8a7",
+            "name":"Bob Williams",
+            "token":"P-C7rHe2rflHZVaYYUQxg9",
+            "type":"person",
+            "entity_application_token":"EA-P8QtJswkpBHI36s6mbke",
+            "entity_application_status":"data_request",
+            "entity_application_outcome":null,
+            "entity_application_branch_name":"persons",
+            "created":"2026-05-01T02:43:53.518Z",
+            "sandbox_persona_name":null,
+            "external_entity_ids":[
+               {
+                  "external_entity_id":"6ee038fc-fd01-40e3-82a1-7140e964f8a7",
+                  "external_entity_id_type":null,
+                  "external_entity_id_source":null
+               }
+            ]
+         }
+      ],
+      "entity_group":null,
+      "entity_applications":[
+         {
+            "entity_token":"P-C7rHe2rflHZVaYYUQxg9",
+            "entity_application_token":"EA-P8QtJswkpBHI36s6mbke",
+            "entity_application_outcome":null,
+            "entity_application_status":"data_request",
+            "sdk_link":null,
+            "entity_application_status_details":{
+               "prompts":{
+                  
+               },
+               "optional":[
+                  {
+                     "key":"user_created",
+                     "type":"string",
+                     "regex":"/^(?:[-+]\\d{2})?(?:\\d{4}(?!\\d{2}\\b))(?:(-?)(?:(?:0[1-9]|1[0-2])(?:\\1(?:[12]\\d|0[1-9]|3[01]))?|W(?:[0-4]\\d|5[0-2])(?:-?[1-7])?|(?:00[1-9]|0[1-9]\\d|[12]\\d{2}|3(?:[0-5]\\d|6[1-6])))(?![T]$|[T][\\d]+Z$)(?:[T\\s](?:(?:(?:[01]\\d|2[0-3])(?:(:?)[0-5]\\d)?|24:?00)(?:[.,]\\d+(?!:))?)(?:\\2[0-5]\\d(?:[.,]\\d+)?)?(?:[Z]|(?:[+-])(?:[01]\\d|2[0-3])(?::?[0-5]\\d)?)?)?)?$/",
+                     "description":"User Created - valid ISO 8601 format"
+                  },
+                  {
+                     "key":"document_ssn_last4",
+                     "type":"string",
+                     "regex":"/^\\d{4}$/",
+                     "description":"Last four digits of a US social security number"
+                  },
+                  {
+                     "key":"ip_address_v4",
+                     "type":"string",
+                     "regex":"/^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$/",
+                     "description":"IP address v4"
+                  },
+                  {
+                     "key":"ip_address_v6",
+                     "type":"string",
+                     "regex":"/(?:^|(?<=\\s))(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))(?=\\s|$)/",
+                     "description":"IP address v6"
+                  },
+                  {
+                     "key":"device_id",
+                     "type":"string"
+                  },
+                  {
+                     "key":"business_name",
+                     "type":"string",
+                     "description":"Business name"
+                  },
+                  {
+                     "key":"business_url",
+                     "type":"string",
+                     "description":"Business URL"
+                  },
+                  {
+                     "key":"business_federal_ein",
+                     "type":"string",
+                     "regex":"/^\\d{9}$/",
+                     "description":"Business Federal Employer Identification Number"
+                  },
+                  {
+                     "key":"lead_type",
+                     "type":"string",
+                     "description":"Lead type"
+                  },
+                  {
+                     "key":"loan_amount",
+                     "type":"number",
+                     "description":"Loan amount"
+                  },
+                  {
+                     "key":"loan_currency",
+                     "type":"string",
+                     "description":"Loan currency"
+                  },
+                  {
+                     "key":"metadata",
+                     "type":"object"
+                  },
+                  {
+                     "key":"alt_phone_number",
+                     "type":"string",
+                     "regex":"/^\\+?\\d{1,11}$/",
+                     "description":"Alternate phone number"
+                  },
+                  {
+                     "key":"alt_email_address",
+                     "type":"string",
+                     "regex":"/^(([^<>()\\[\\].,;:\\s@\"]+(\\.[^<>()\\[\\].,;:\\s@\"]+)*)|(\".+\"))@(([^<>()\\[\\].,;:\\s@\"]+\\.)+[^<>()\\[\\].,;:\\s@\"]{2,})$/i",
+                     "description":"Alternate email"
+                  }
+               ],
+               "required":[
+                  {
+                     "key":"birth_date",
+                     "type":"string",
+                     "regex":"/^(?:[-+]\\d{2})?(?:\\d{4}(?!\\d{2}\\b))(?:(-?)(?:(?:0[1-9]|1[0-2])(?:\\1(?:[12]\\d|0[1-9]|3[01]))?|W(?:[0-4]\\d|5[0-2])(?:-?[1-7])?|(?:00[1-9]|0[1-9]\\d|[12]\\d{2}|3(?:[0-5]\\d|6[1-6])))(?![T]$|[T][\\d]+Z$)(?:[T\\s](?:(?:(?:[01]\\d|2[0-3])(?:(:?)[0-5]\\d)?|24:?00)(?:[.,]\\d+(?!:))?)(?:\\2[0-5]\\d(?:[.,]\\d+)?)?(?:[Z]|(?:[+-])(?:[01]\\d|2[0-3])(?::?[0-5]\\d)?)?)?)?$/",
+                     "message":"\"birth_date\" is required",
+                     "description":"Birth date - valid ISO 8601 format"
+                  },
+                  {
+                     "key":"document_ssn",
+                     "type":"string",
+                     "regex":"/^\\d{9}$/",
+                     "message":"\"document_ssn\" is required",
+                     "description":"US social security number"
+                  },
+                  {
+                     "key":"phone_number",
+                     "type":"string",
+                     "regex":"/^\\+?\\d{1,11}$/",
+                     "message":"\"phone_number\" is required",
+                     "description":"Primary phone number"
+                  },
+                  {
+                     "key":"email_address",
+                     "type":"string",
+                     "regex":"/^(([^<>()\\[\\].,;:\\s@\"]+(\\.[^<>()\\[\\].,;:\\s@\"]+)*)|(\".+\"))@(([^<>()\\[\\].,;:\\s@\"]+\\.)+[^<>()\\[\\].,;:\\s@\"]{2,})$/i",
+                     "message":"\"email_address\" is required",
+                     "description":"Primary email address"
+                  },
+                  {
+                     "key":"neuro_user_id",
+                     "type":"string",
+                     "message":"\"neuro_user_id\" is required",
+                     "description":"The unique identifier of the request, typically the NeuroID user_id"
+                  },
+                  {
+                     "key":"site_id",
+                     "type":"string",
+                     "message":"\"site_id\" is required",
+                     "description":"The site identifier of the request, typically the site_id"
+                  }
+               ]
+            },
+            "external_entity_identifier":"6ee038fc-fd01-40e3-82a1-7140e964f8a7",
+            "external_entity_identifiers":[
+               {
+                  "external_entity_identifier":"6ee038fc-fd01-40e3-82a1-7140e964f8a7",
+                  "external_entity_identifier_source":null
+               }
+            ],
+            "dimensions":null
+         }
+      ],
+      "is_pending_additional_entities":false,
+      "entity":{
+         "external_entity_identifier":null,
+         "name":null,
+         "token":"G-VeBnvGfhB7N7jg59RPtY",
+         "type":"group"
+      },
+      "events":[
+         {
+            "journey_application_event_token":"718055538",
+            "journey_application_token":"JA-dTciVtrx4jpIQHUAoM5s",
+            "type":"started_application",
+            "journey_type":"application",
+            "timestamp":1777606754047,
+            "entity_token":"G-VeBnvGfhB7N7jg59RPtY",
+            "entity_application_token":null,
+            "_embedded":{
+               "node":{
+                  "id":null,
+                  "name":null,
+                  "type":null
+               }
+            },
+            "_links":{
+               
+            }
+         },
+         {
+            "journey_application_event_token":"718055540",
+            "journey_application_token":"JA-dTciVtrx4jpIQHUAoM5s",
+            "type":"started_evaluation",
+            "journey_type":"application",
+            "timestamp":1777606754099,
+            "evaluation_token":"S-d6SoJSzJKnZzrKaokFeu",
+            "entity_token":"P-C7rHe2rflHZVaYYUQxg9",
+            "entity_application_token":"EA-P8QtJswkpBHI36s6mbke",
+            "_embedded":{
+               "node":{
+                  "id":"631f70af-1c63-4aec-8f08-8b9e80592a82",
+                  "name":"Fraud & CIP (LexisNexis)",
+                  "type":"workflow",
+                  "config":{
+                     "application_token":"hAuW4z4oXUFFqHlnteZHsBVYDXVyqgCO",
+                     "workflow_token":"hAuW4z4oXUFFqHlnteZHsBVYDXVyqgCO",
+                     "application_version_id":1,
+                     "workflow_version_id":1,
+                     "workflow_type":"person",
+                     "workflow_current_version":1
+                  },
+                  "workflow_name":"Fraud & CIP (LexisNexis)"
+               }
+            },
+            "_links":{
+               "evaluation":{
+                  "href":"/v1/evaluations/S-d6SoJSzJKnZzrKaokFeu"
+               }
+            },
+            "evaluation_tokens_sorted_by_created_dec":[
+               "S-d6SoJSzJKnZzrKaokFeu"
+            ]
+         },
+         {
+            "journey_application_event_token":"718055551",
+            "journey_application_token":"JA-dTciVtrx4jpIQHUAoM5s",
+            "type":"data_request_evaluation",
+            "journey_type":"application",
+            "timestamp":1777606754457,
+            "evaluation_token":"S-d6SoJSzJKnZzrKaokFeu",
+            "entity_token":"P-C7rHe2rflHZVaYYUQxg9",
+            "entity_application_token":"EA-P8QtJswkpBHI36s6mbke",
+            "_embedded":{
+               "node":{
+                  "id":"631f70af-1c63-4aec-8f08-8b9e80592a82",
+                  "name":"Fraud & CIP (LexisNexis)",
+                  "type":"workflow",
+                  "config":{
+                     "application_token":"hAuW4z4oXUFFqHlnteZHsBVYDXVyqgCO",
+                     "workflow_token":"hAuW4z4oXUFFqHlnteZHsBVYDXVyqgCO",
+                     "application_version_id":1,
+                     "workflow_version_id":1,
+                     "workflow_type":"person",
+                     "workflow_current_version":1
+                  },
+                  "workflow_name":"Fraud & CIP (LexisNexis)",
+                  "sdk_config":{
+                     "plugin":"DocV",
+                     "selfie":false,
+                     "force_mobile":false,
+                     "validation_precheck":false,
+                     "show_welcome_screen":false,
+                     "documents":null,
+                     "document_help_text":null,
+                     "sms_text":null,
+                     "custom_document_title":null,
+                     "custom_document_body":null,
+                     "custom_uploaded_title":null,
+                     "custom_uploaded_body":null,
+                     "send_document_button":null
+                  }
+               }
+            },
+            "_links":{
+               "evaluation":{
+                  "href":"/v1/evaluations/S-d6SoJSzJKnZzrKaokFeu"
+               }
+            },
+            "evaluation_tokens_sorted_by_created_dec":[
+               "S-d6SoJSzJKnZzrKaokFeu"
+            ]
+         }
+      ],
+      "journey":{
+         "journey_name":"Individual Account Opening (KYC)",
+         "journey_type":"application",
+         "journey_token":"J-okHvKz7EDMq5hL7Rw3bz",
+         "journey_version_num":"1",
+         "is_multi_entity":false,
+         "_links":{
+            "self":{
+               "href":"/v1/journeys/J-okHvKz7EDMq5hL7Rw3bz"
+            },
+            "callback":{
+               "href":"/v1/journeys/J-okHvKz7EDMq5hL7Rw3bz/applications/JA-dTciVtrx4jpIQHUAoM5s/"
+            },
+            "callback_by_entity_application_token":{
+               "EA-P8QtJswkpBHI36s6mbke":{
+                  "href":"/v1/journeys/J-okHvKz7EDMq5hL7Rw3bz/applications/JA-dTciVtrx4jpIQHUAoM5s/"
+               }
+            }
+         }
+      }
+   },
+   "_links":{
+      "self":{
+         "href":"/v1/journeys/J-okHvKz7EDMq5hL7Rw3bz/applications/JA-dTciVtrx4jpIQHUAoM5s"
+      }
+   }
 }
-
-{
-  "accountResolution:AppSettings:COSMOS_CONNSTRING": {
-    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-COSMOS-CONNSTRING"
-  },
-  "accountResolution:AppSettings:SERVICE_BUS_CONNSTRING": {
-    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-SERVICE-BUS-CONNSTRING"
-  },
-  "accountResolution:AppSettings:REDIS_CONNSTRING": {
-    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ACCTRES-REDIS-CONNSTRING"
-  }
-}
-
