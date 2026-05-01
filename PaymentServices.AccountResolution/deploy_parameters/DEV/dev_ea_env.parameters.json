@@ -15,5 +15,6 @@
   "accountResolution:AppSettings:SERVICE_BUS_SUBSCRIPTION": "account-resolution",
 
   "accountResolution:AppSettings:ALLOY_BASE_URL": "https://sandbox.alloy.co",
+  "accountResolution:AppSettings:ALLOY_SANDBOX": "true",
   "accountResolution:AppSettings:REDIS_ACCOUNT_CACHE_TTL_HOURS": "1"
 }

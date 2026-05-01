@@ -43,6 +43,7 @@ public sealed class OnboardCustomerResponse
     public required string CustomerId { get; init; }
     public required string FintechId { get; init; }
     public required string Status { get; init; }
+    public string? KycOutcome { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 

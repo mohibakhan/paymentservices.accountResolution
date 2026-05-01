@@ -13,5 +13,14 @@
   },
   "accountResolution:AppSettings:ALLOY_API_SECRET": {
     "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-API-SECRET"
+  },
+  "accountResolution:AppSettings:ALLOY_INDIVIDUAL_KYC_JOURNEY_TOKEN": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-INDIVIDUAL-KYC-JOURNEY-TOKEN"
+  },
+  "accountResolution:AppSettings:ALLOY_BUSINESS_KYC_JOURNEY_TOKEN": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-BUSINESS-KYC-JOURNEY-TOKEN"
+  },
+  "accountResolution:AppSettings:ALLOY_KYC_WORKFLOW_SECRET": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/ALLOY-KYC-WORKFLOW-SECRET"
   }
 }

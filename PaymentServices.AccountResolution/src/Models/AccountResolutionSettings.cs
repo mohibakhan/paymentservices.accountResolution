@@ -27,8 +27,12 @@ public sealed class AccountResolutionSettings : AppSettings
     // Alloy Events API
     // -------------------------------------------------------------------------
     public string ALLOY_BASE_URL { get; set; } = "https://sandbox.alloy.co";
+    public bool ALLOY_SANDBOX { get; set; } = true;
     public string ALLOY_API_TOKEN { get; set; } = string.Empty;
     public string ALLOY_API_SECRET { get; set; } = string.Empty;
+    public string ALLOY_INDIVIDUAL_KYC_JOURNEY_TOKEN { get; set; } = string.Empty;
+    public string ALLOY_BUSINESS_KYC_JOURNEY_TOKEN { get; set; } = string.Empty;
+    public string ALLOY_KYC_WORKFLOW_SECRET { get; set; } = string.Empty;
 
     // -------------------------------------------------------------------------
     // Redis cache

@@ -76,11 +76,26 @@ public sealed class OnboardService : IOnboardService
             "Customer onboarded. CustomerId={CustomerId} FintechId={FintechId}",
             created.Id, request.FintechId);
 
+        // Run KYC via Alloy — registers entity so bank_account_created works next
+        var kycResult = await _alloyEventsService.RunKycAsync(
+            customerId: created.Id,
+            nameFirst: request.Name.First,
+            nameLast: request.Name.Last,
+            businessName: request.Name.Company,
+            isBusiness: request.Name.IsBusiness,
+            address: request.Address,
+            cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "KYC complete. CustomerId={CustomerId} Outcome={Outcome}",
+            created.Id, kycResult.Outcome);
+
         return new OnboardCustomerResponse
         {
             CustomerId = created.Id,
             FintechId = request.FintechId,
-            Status = "Created"
+            Status = "Created",
+            KycOutcome = kycResult.Outcome
         };
     }
 
