@@ -1,26 +1,32 @@
 using System.Diagnostics.CodeAnalysis;
 using Azure.Identity;
+using FluentValidation;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using PaymentServices.AccountResolution.Models;
-using PaymentServices.AccountResolution.Repositories;
-using PaymentServices.AccountResolution.Services;
+using PaymentServices.RTPSend.Helpers;
+using PaymentServices.RTPSend.Interface;
+using PaymentServices.RTPSend.Interface.Adapters;
+using PaymentServices.RTPSend.Interface.External;
+using PaymentServices.RTPSend.Interface.Services;
+using PaymentServices.RTPSend.Providers;
+using PaymentServices.RTPSend.Repositories;
+using PaymentServices.RTPSend.Repositories.Adapters;
+using PaymentServices.RTPSend.Services;
+using PaymentServices.RTPSend.Settings;
+using PaymentServices.RTPSend.Validators;
 using PaymentServices.Shared.Extensions;
 using Serilog;
 using Serilog.Events;
-using StackExchange.Redis;
-using CosmosContainer = Microsoft.Azure.Cosmos.Container;
 
-namespace PaymentServices.AccountResolution;
+namespace PaymentServices.RTPSend;
 
 [ExcludeFromCodeCoverage]
 public static class Program
 {
-    private const string Prefix = "accountResolution:AppSettings";
+    private const string Prefix = "rtpSend:AppSettings";
 
     public static async Task Main(string[] args)
     {
@@ -37,43 +43,53 @@ public static class Program
                 services.AddApplicationInsightsTelemetryWorkerService();
                 services.ConfigureFunctionsApplicationInsights();
 
-                // Shared infrastructure
+                // Shared platform infrastructure (PaymentServices.Shared)
                 services.AddPaymentAppSettings(config, Prefix);
                 services.AddPaymentCosmosClient(config, Prefix);
                 services.AddPaymentServiceBusPublisher(config, Prefix);
 
-                // AccountResolution-specific settings
-                services.AddOptions<AccountResolutionSettings>()
+                // RTPSend-specific settings
+                services.AddOptions<RtpSendSettings>()
                     .Configure<IConfiguration>((settings, cfg) =>
                         cfg.GetSection(Prefix).Bind(settings));
 
                 // Cosmos containers
                 RegisterCosmosContainers(services, config);
 
-                // Repositories
-                services.AddTransient<IAccountRepository, AccountRepository>();
-                services.AddTransient<ITransactionStateRepository, TransactionStateRepository>();
-                services.AddTransient<IOnboardRepository, OnboardRepository>();
+                // Adapters / repositories
+                services.AddScoped<IPaymentCosmosDBAdapter, PaymentCosmosDBAdapter>();
+                services.AddScoped<IPartnerLedgerCosmosDBAdapter, PartnerLedgerCosmosDBAdapter>();
+                services.AddScoped<IApiUserConfigCosmosAdapter, ApiUserConfigAdapter>();
+                services.AddScoped<IPaymentIdempotencyAdapter, PaymentIdempotencyAdapter>();
+                services.AddSingleton<IServiceBusAdapter, ServiceBusAdapter>();
 
-                // Redis cache — singleton connection, silent fallback if unavailable
-                var redisConnString = config[$"{Prefix}:REDIS_CONNSTRING"] ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(redisConnString))
-                {
-                    services.AddSingleton<IConnectionMultiplexer>(_ =>
-                        ConnectionMultiplexer.Connect(redisConnString));
-                    services.AddSingleton<ICacheService, RedisCacheService>();
-                }
-                else
-                {
-                    services.AddSingleton<ICacheService, NoOpCacheService>();
-                }
+                // Helpers
+                services.AddScoped<IEvolvePaymentRequestHelper, EvolvePaymentRequestHelper>();
+                services.AddScoped<IProblemHelper, ProblemHelper>();
 
-                // Services
-                services.AddTransient<IAccountResolutionService, AccountResolutionService>();
-                services.AddTransient<IOnboardService, OnboardService>();
-
+                // HTTP + HttpContext
                 services.AddHttpClient();
+                services.AddHttpContextAccessor();
+
+                // External services — PLACEHOLDERS.
+                // When the real LimitService / LedgerService NuGet packages land,
+                // remove the NoOp registrations below and call their official
+                // AddXxx() extension methods instead.
+                services.AddScoped<ILimitService, NoOpLimitService>();
+                services.AddScoped<ILedgerService, NoOpLedgerService>();
+
+                // Core business services
+                services.AddScoped<PartnerLedgerSystem>();
+                services.AddScoped<ITabaPaySendService, TabaPaySendService>();
+                services.AddScoped<IServiceBusMessageService, ServiceBusMessageService>();
+                services.AddScoped<IPaymentOrchestrator, PaymentOrchestrator>();
+
+                // Validation
+                services.AddValidatorsFromAssemblyContaining<BasicPaymentRequestValidator>();
+
+                // Health checks
                 services.AddHealthChecks();
+                services.AddSingleton<IHealthCheckServiceProvider, HealthCheckServiceProvider>();
             })
             .ConfigureLogging((context, logging) =>
             {
@@ -114,7 +130,7 @@ public static class Program
             {
                 options
                     .Connect(new Uri(appConfigUrl), credential)
-                    .Select("accountResolution:*")
+                    .Select("rtpSend:*")
                     .Select("telemetry:*")
                     .ConfigureKeyVault(kv => kv.SetCredential(credential));
             });
@@ -133,7 +149,7 @@ public static class Program
             .MinimumLevel.Override("Microsoft.Azure.Functions.Worker", LogEventLevel.Warning)
             .MinimumLevel.Override("Host", LogEventLevel.Warning)
             .Enrich.FromLogContext()
-            .Enrich.WithProperty("Service", "PaymentServices.AccountResolution")
+            .Enrich.WithProperty("Service", "PaymentServices.RTPSend")
             .Enrich.WithProperty("Environment",
                 Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Production")
             .CreateLogger();
@@ -141,49 +157,35 @@ public static class Program
 
     private static void RegisterCosmosContainers(IServiceCollection services, IConfiguration config)
     {
-        var database = config[$"{Prefix}:COSMOS_DATABASE"] ?? "tptch";
+        var database = config[$"{Prefix}:COSMOS_DATABASE"]
+            ?? throw new InvalidOperationException($"{Prefix}:COSMOS_DATABASE is required");
 
-        services.AddKeyedSingleton<CosmosContainer>("accounts", (sp, _) =>
+        services.AddKeyedSingleton<Container>("payments", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config[$"{Prefix}:COSMOS_ACCOUNTS_CONTAINER"] ?? "accounts";
+            var container = config[$"{Prefix}:COSMOS_PAYMENT_CONTAINER"] ?? "paymentRequests";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<CosmosContainer>("remoteAccounts", (sp, _) =>
+        services.AddKeyedSingleton<Container>("partnerLedger", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config[$"{Prefix}:COSMOS_REMOTE_ACCOUNTS_CONTAINER"] ?? "remoteAccounts";
+            var container = config[$"{Prefix}:COSMOS_PARTNER_LEDGER_CONTAINER"] ?? "partnerLedger";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<CosmosContainer>("customers", (sp, _) =>
+        services.AddKeyedSingleton<Container>("apiUserConfig", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config[$"{Prefix}:COSMOS_CUSTOMERS_CONTAINER"] ?? "customers";
+            var container = config[$"{Prefix}:COSMOS_API_CONFIG_CONTAINER"] ?? "apiUserConfig";
             return client.GetContainer(database, container);
         });
 
-        services.AddKeyedSingleton<CosmosContainer>("platforms", (sp, _) =>
+        services.AddKeyedSingleton<Container>("paymentIdempotency", (sp, _) =>
         {
             var client = sp.GetRequiredService<CosmosClient>();
-            var container = config[$"{Prefix}:COSMOS_PLATFORMS_CONTAINER"] ?? "platforms";
+            var container = config[$"{Prefix}:COSMOS_IDEMPOTENCY_CONTAINER"] ?? "paymentIdempotency";
             return client.GetContainer(database, container);
-        });
-
-        services.AddKeyedSingleton<CosmosContainer>("transactions", (sp, _) =>
-        {
-            var client = sp.GetRequiredService<CosmosClient>();
-            var container = config[$"{Prefix}:COSMOS_TRANSACTIONS_CONTAINER"] ?? "tchSendTransactions";
-            return client.GetContainer(database, container);
-        });
-
-        services.AddKeyedSingleton<CosmosContainer>("ledgers", (sp, _) =>
-        {
-            var client = sp.GetRequiredService<CosmosClient>();
-            var ledgerDb = config[$"{Prefix}:COSMOS_LEDGER_DATABASE"] ?? "ledgers";
-            var ledgerContainer = config[$"{Prefix}:COSMOS_LEDGER_CONTAINER"] ?? "ledgers";
-            return client.GetContainer(ledgerDb, ledgerContainer);
         });
     }
 }
