@@ -13,8 +13,8 @@ namespace PaymentServices.AccountResolution.Functions;
 /// <summary>
 /// Service Bus Trigger — picks up messages with state AccountResolutionPending.
 /// Resolves source and destination accounts in parallel.
-/// On success → publishes KycPending.
-/// On failure → publishes AccountResolutionFailed → EventNotification.
+/// On success → publishes AccountResolutionCompleted (routes to Transfer).
+/// On failure → publishes AccountResolutionFailed → RTPSend outcome handler.
 /// </summary>
 public sealed class AccountResolutionFunction
 {
@@ -38,9 +38,9 @@ public sealed class AccountResolutionFunction
     [Function(nameof(AccountResolutionFunction))]
     public async Task RunAsync(
         [ServiceBusTrigger(
-            topicName: "%app:AppSettings:SERVICE_BUS_TOPIC%",
-            subscriptionName: "%app:AppSettings:SERVICE_BUS_SUBSCRIPTION%",
-            Connection = "app:AppSettings:SERVICE_BUS_CONNSTRING")]
+            topicName: "payment-processing",
+            subscriptionName: "account-resolution",
+            Connection = "SERVICE_BUS_CONNSTRING")]
         ServiceBusReceivedMessage serviceBusMessage,
         ServiceBusMessageActions messageActions,
         CancellationToken cancellationToken)
@@ -55,9 +55,7 @@ public sealed class AccountResolutionFunction
                 "AccountResolution started. EvolveId={EvolveId} CorrelationId={CorrelationId}",
                 message.EvolveId, message.CorrelationId);
 
-            // -------------------------------------------------------------------------
             // Resolve source and destination accounts in parallel
-            // -------------------------------------------------------------------------
             var sourceTask = _resolutionService.ResolveAsync(
                 message.Source.AccountNumber, cancellationToken);
 
@@ -69,9 +67,7 @@ public sealed class AccountResolutionFunction
             var sourceResult = await sourceTask;
             var destinationResult = await destinationTask;
 
-            // -------------------------------------------------------------------------
             // Fail fast if either account not found
-            // -------------------------------------------------------------------------
             if (sourceResult is null || destinationResult is null)
             {
                 var failureReason = sourceResult is null
@@ -96,9 +92,7 @@ public sealed class AccountResolutionFunction
                 return;
             }
 
-            // -------------------------------------------------------------------------
             // Enrich message with resolved account details
-            // -------------------------------------------------------------------------
             message.Source.AccountId = sourceResult.AccountId;
             message.Source.LedgerId = sourceResult.LedgerId;
             message.Source.RemoteAccountId = sourceResult.RemoteAccountId;
@@ -109,9 +103,7 @@ public sealed class AccountResolutionFunction
             message.Destination.RemoteAccountId = destinationResult.RemoteAccountId;
             message.Destination.EntityId = destinationResult.EntityId;
 
-            // -------------------------------------------------------------------------
             // Update Cosmos transaction state
-            // -------------------------------------------------------------------------
             await _transactionStateRepository.UpdateAsync(
                 message.EvolveId,
                 TransactionState.AccountResolutionCompleted,
@@ -126,10 +118,9 @@ public sealed class AccountResolutionFunction
                 },
                 cancellationToken);
 
-            // -------------------------------------------------------------------------
-            // Advance to KYC
-            // -------------------------------------------------------------------------
-            message.State = TransactionState.KycPending;
+            // Advance to Transfer (KYC/TMS removed from the path).
+            // The 'transfer' subscription filter is set to AccountResolutionCompleted.
+            message.State = TransactionState.AccountResolutionCompleted;
 
             await _publisher.PublishAsync(message, cancellationToken);
 
