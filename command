@@ -1,26 +1,28 @@
-[Fact]
-public async Task ProcessAsync_AfterGatewayCall_AppendsGatewaySubmittedStatusToHistory()
+using FluentValidation;
+using PaymentServices.RTPSend.Models.Domain;
+
+namespace PaymentServices.RTPSend.Validators;
+
+public class AccountNameValidator : AbstractValidator<AccountName>
 {
-    var payment = TestDataBuilder.AnEvolvePaymentAtStage(RequestStage.RTP_API);
+    public AccountNameValidator()
+    {
+        // Valid when EITHER a company name is provided, OR both first and last
+        // are provided. Mirrors AccountName.ToString() (prefers Company, else
+        // "First Last").
+        RuleFor(x => x)
+            .Must(HaveCompanyOrFullPersonName)
+            .WithMessage(
+                "Account name must include either a company name, or both first and last name.");
+    }
 
-    await _sut.ProcessAsync(payment);
+    private static bool HaveCompanyOrFullPersonName(AccountName name)
+    {
+        var hasCompany = !string.IsNullOrWhiteSpace(name.Company);
+        var hasFullPersonName =
+            !string.IsNullOrWhiteSpace(name.First) &&
+            !string.IsNullOrWhiteSpace(name.Last);
 
-    payment.StatusHistory.Should().Contain(history =>
-        history.Stage == RequestStage.ACCOUNTLOOKUP.ToString()
-        && history.Status == RequestStatus.INITIATED.ToString()
-        && history.AddInfo != null
-        && history.AddInfo.ToString()!.Contains("Submitted to Gateway", StringComparison.Ordinal));
-}
-
-[Fact]
-public async Task ProcessAsync_AfterGatewayCall_PatchesGatewaySubmittedStatusEntry()
-{
-    var payment = TestDataBuilder.AnEvolvePaymentAtStage(RequestStage.RTP_API);
-
-    await _sut.ProcessAsync(payment);
-
-    _paymentCosmosDB.Verify(c => c.PatchItemAsync(
-            It.IsAny<EvolvePaymentRequest>(),
-            It.IsAny<List<PatchOperation>>()),
-        Times.Once);
+        return hasCompany || hasFullPersonName;
+    }
 }
