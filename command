@@ -1,63 +1,233 @@
+using FluentValidation;
+using AccountTypeEnum = PaymentServices.RTPSend.Models.Domain.AccountType;
+using PaymentServices.RTPSend.Models.Domain;
+
+namespace PaymentServices.RTPSend.Validators;
+
+public class SourceAccountValidator : AbstractValidator<SourceAccount>
 {
-    "paymentReference": "b8623eg-2c0g-1948-97au-e8d9t00a7ad8",
-    "sourceAccountId": null,
-    "sourceAccount": {
-        "accountNumber": "9010010000000001",
-        "name": {
-            "company": null,
-            "first": "",
-            "last": "Merchant"
-        },
-        "address": null,
-        "routingNumber": "084009593",
-        "accountType": "S",
-        "debtorBankMemberID": null,
-        "debtorIdOther": null
-    },
-    "destinationAccountId": null,
-    "destinationAccount": {
-        "accountNumber": "900397187386253",
-        "name": {
-            "company": null,
-            "first": "Sarah",
-            "last": "Robinson"
-        },
-        "routingNumber": "101115315",
-        "accountType": "C",
-        "address": {
-            "addressLines": [
-                "123 First Street"
-            ],
-            "city": "Omaha",
-            "county": null,
-            "countryISOCode": "840",
-            "postalCode": "",
-            "stateCode": "NE"
-        },
-        "phoneNumber": "4022221144",
-        "creditorAgentTCHMemberID": null,
-        "creditorIdOther": null
-    },
-    "amount": "0.90",
-    "ultimateDebtor": {
-        "name": "ultimate"
-    },
-    "sourceCurrency": null,
-    "paymentCurrency": null,
-    "softDescriptor": {
-        "name": "Earnin",
-        "email": "support@earnin.com",
-        "phone": null,
-        "address": {
-            "addressLines": [
-                "200 Main Street"
-            ],
-            "city": "Palo Alto",
-            "county": "CUY",
-            "countryISOCode": "840",
-            "postalCode": "94301",
-            "stateCode": "CA"
-        }
-    },
-    "remittanceInformation": "money money"
+    public SourceAccountValidator()
+    {
+        RuleFor(x => x.AccountNumber)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
+            .NotEmpty()
+            .Custom((x, context) =>
+            {
+                if (!ulong.TryParse(x, out _))
+                    context.AddFailure($"{x} is not a valid account number");
+            });
+
+        RuleFor(x => x.Name)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
+            .WithMessage("Source Account name is required")
+            .SetValidator(new AccountNameValidator());
+
+        RuleFor(x => x.RoutingNumber)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
+            .NotEmpty()
+            .Custom((x, context) =>
+            {
+                if (!ulong.TryParse(x, out _))
+                    context.AddFailure($"{x} is not a valid Routing number");
+            });
+
+        RuleFor(x => x.AccountType)
+            .NotEmpty()
+            .NotNull()
+            .IsEnumName(typeof(AccountTypeEnum))
+            .WithMessage("Invalid Source AccountType is required and can be one of the following values: S, C, A, B, L");
+    }
+}
+
+
+using FluentValidation.TestHelper;
+using PaymentServices.RTPSend.Models.Domain;
+using PaymentServices.RTPSend.UnitTests.TestHelpers;
+using PaymentServices.RTPSend.Validators;
+
+namespace PaymentServices.RTPSend.UnitTests.Validators;
+
+public class BasicPaymentRequestValidatorTests
+{
+    private readonly BasicPaymentRequestValidator _sut = new();
+
+    // -------------------------------------------------------------------------
+    // PaymentReference
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Validate_WhenPaymentReferenceIsNull_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.PaymentReference = null!;
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor(r => r.PaymentReference);
+    }
+
+    [Fact]
+    public void Validate_WhenPaymentReferenceIsEmpty_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.PaymentReference = string.Empty;
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor(r => r.PaymentReference);
+    }
+
+    [Fact]
+    public void Validate_WhenPaymentReferenceIsValid_NoError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor(r => r.PaymentReference);
+    }
+
+    // -------------------------------------------------------------------------
+    // Amount
+    // -------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("abc")]                  // not numeric
+    [InlineData("-1.00")]                // negative
+    [InlineData("12345678901234567890")] // > 18 chars
+    public void Validate_WhenAmountIsInvalid_HasError(string amount)
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.Amount = amount;
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor(r => r.Amount);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("0.01")]
+    [InlineData("100.00")]
+    [InlineData("99999999.99")]
+    public void Validate_WhenAmountIsValid_NoError(string amount)
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.Amount = amount;
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor(r => r.Amount);
+    }
+
+    // -------------------------------------------------------------------------
+    // SourceAccount / SourceAccountId — either-or
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Validate_WhenSourceAccountIdProvidedAndSourceAccountNull_NoError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SourceAccountId = "existing-account-id";
+        req.SourceAccount = null;
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor(r => r.SourceAccount);
+    }
+
+    [Fact]
+    public void Validate_WhenBothSourceAccountIdAndSourceAccountAreMissing_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SourceAccountId = null;
+        req.SourceAccount = null;
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor(r => r.SourceAccount);
+    }
+
+    [Fact]
+    public void Validate_WhenSourceAccountNameFirstAndLastAreEmpty_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SourceAccount!.Name = new AccountName { First = string.Empty, Last = string.Empty, Company = null };
+
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor("SourceAccount.Name.First")
+            .And.ShouldHaveValidationErrorFor("SourceAccount.Name.Last");
+    }
+
+    // -------------------------------------------------------------------------
+    // SoftDescriptor — optional block, but Name required when block is present
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Validate_WhenSoftDescriptorIsNull_NoError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SoftDescriptor = null;
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor("SoftDescriptor.Name");
+    }
+
+    [Fact]
+    public void Validate_WhenSoftDescriptorSuppliedWithoutName_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SoftDescriptor = new SoftDescriptor { Name = null };
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor("SoftDescriptor.Name");
+    }
+
+    [Fact]
+    public void Validate_WhenSoftDescriptorHasNameButNullAddress_NoError()
+    {
+        // The fix we applied: address is optional within SoftDescriptor.
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SoftDescriptor = new SoftDescriptor
+        {
+            Name = "Test Merchant",
+            Email = null,
+            Phone = null,
+            Address = null
+        };
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor("SoftDescriptor.Address");
+    }
+
+    [Fact]
+    public void Validate_WhenSoftDescriptorPhoneSuppliedWithoutNumber_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.SoftDescriptor = new SoftDescriptor
+        {
+            Name = "Test Merchant",
+            Phone = new Phone { Number = null }
+        };
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor("SoftDescriptor.Phone.Number");
+    }
+
+    // -------------------------------------------------------------------------
+    // RemittanceInformation — added in issue #3
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Validate_WhenRemittanceInformationIsNull_NoError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.RemittanceInformation = null;
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor(r => r.RemittanceInformation);
+    }
+
+    [Fact]
+    public void Validate_WhenRemittanceInformationIsWithinLimit_NoError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.RemittanceInformation = new string('a', 140);
+        _sut.TestValidate(req)
+            .ShouldNotHaveValidationErrorFor(r => r.RemittanceInformation);
+    }
+
+    [Fact]
+    public void Validate_WhenRemittanceInformationExceeds140Chars_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.RemittanceInformation = new string('a', 141);
+        _sut.TestValidate(req)
+            .ShouldHaveValidationErrorFor(r => r.RemittanceInformation);
+    }
 }
