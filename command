@@ -1,38 +1,13 @@
-"statusHistory": [
-        {
-            "stage": "RTP_API",
-            "status": "RECEIVED",
-            "statusDate": "2026-07-09T19:28:46.8716822Z"
-        },
-        {
-            "stage": "ACCOUNTLOOKUP",
-            "status": "COMPLETED",
-            "statusDate": "2026-07-09T19:28:47.0085931Z",
-            "addInfo": "PartnerLedgerLookup completed"
-        },
-        {
-            "stage": "ACCOUNTLOOKUP",
-            "status": "INITIATED",
-            "statusDate": "2026-07-09T19:28:47.1351108Z",
-            "addInfo": {
-                "message": "Submitted to Gateway tptch/send"
-            }
-        },
-        {
-            "stage": "ACCOUNTLOOKUP",
-            "status": "COMPLETED",
-            "statusDate": "2026-07-09T19:28:47.1548146Z",
-            "addInfo": {
-                "message": "Screening and limits passed"
-            }
-        },
-        {
-            "stage": "ACCOUNTLOOKUP",
-            "status": "FAILED",
-            "statusDate": "2026-07-09T19:28:47.6904994Z",
-            "addInfo": {
-                "message": "Pipeline failure: TransferFailed",
-                "reason": "Keyword screening matched remittance information: 'scuba gear'"
-            }
-        }
-    ],
+// TransferCompleted means screening, limits, and the ledger debit all passed
+// in Transfer. Record that on the doc (authoritative — Transfer owns these
+// stages) before calling TabaPay, so the history reflects it even though
+// TabaPay runs immediately after.
+var screeningPatches = EvolvePaymentRequestHelper.GetStatusPatchOperation(
+    RequestStage.SCREENING,
+    RequestStatus.COMPLETED,
+    additionalInfo: new { Message = "Screening and limits passed" });
+
+payment = await _paymentCosmosDB.PatchItemAsync(payment, screeningPatches) ?? payment;
+
+_logger.LogInformation(
+    "Screening and limits passed for {EvolveId}; calling TabaPay.", outcome.EvolveId);
