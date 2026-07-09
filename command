@@ -105,6 +105,18 @@ public class BasicPaymentRequestValidatorTests
         result.ShouldHaveValidationErrorFor("SourceAccount.Name.Last");
     }
 
+    [Fact]
+    public void Validate_WhenDestinationAccountNameFirstAndLastAreEmpty_HasError()
+    {
+        var req = TestDataBuilder.AValidBasicRequest();
+        req.DestinationAccount!.Name = new AccountName { First = string.Empty, Last = string.Empty, Company = null };
+
+        var result = _sut.TestValidate(req);
+
+        result.ShouldHaveValidationErrorFor("DestinationAccount.Name.First");
+        result.ShouldHaveValidationErrorFor("DestinationAccount.Name.Last");
+    }
+
     // -------------------------------------------------------------------------
     // SoftDescriptor — optional block, but Name required when block is present
     // -------------------------------------------------------------------------
