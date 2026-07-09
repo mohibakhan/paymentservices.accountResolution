@@ -1,48 +1,3 @@
-using FluentValidation;
-using AccountTypeEnum = PaymentServices.RTPSend.Models.Domain.AccountType;
-using PaymentServices.RTPSend.Models.Domain;
-
-namespace PaymentServices.RTPSend.Validators;
-
-public class SourceAccountValidator : AbstractValidator<SourceAccount>
-{
-    public SourceAccountValidator()
-    {
-        RuleFor(x => x.AccountNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid account number");
-            });
-
-        RuleFor(x => x.Name)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .WithMessage("Source Account name is required")
-            .SetValidator(new AccountNameValidator());
-
-        RuleFor(x => x.RoutingNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid Routing number");
-            });
-
-        RuleFor(x => x.AccountType)
-            .NotEmpty()
-            .NotNull()
-            .IsEnumName(typeof(AccountTypeEnum))
-            .WithMessage("Invalid Source AccountType is required and can be one of the following values: S, C, A, B, L");
-    }
-}
-
-
 using FluentValidation.TestHelper;
 using PaymentServices.RTPSend.Models.Domain;
 using PaymentServices.RTPSend.UnitTests.TestHelpers;
@@ -144,9 +99,10 @@ public class BasicPaymentRequestValidatorTests
         var req = TestDataBuilder.AValidBasicRequest();
         req.SourceAccount!.Name = new AccountName { First = string.Empty, Last = string.Empty, Company = null };
 
-        _sut.TestValidate(req)
-            .ShouldHaveValidationErrorFor("SourceAccount.Name.First")
-            .And.ShouldHaveValidationErrorFor("SourceAccount.Name.Last");
+        var result = _sut.TestValidate(req);
+
+        result.ShouldHaveValidationErrorFor("SourceAccount.Name.First");
+        result.ShouldHaveValidationErrorFor("SourceAccount.Name.Last");
     }
 
     // -------------------------------------------------------------------------
