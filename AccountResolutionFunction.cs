@@ -1,8 +1,10 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PaymentServices.AccountResolution.Repositories;
 using PaymentServices.AccountResolution.Services;
+using PaymentServices.AccountResolution.Models;
 using PaymentServices.Shared.Enums;
 using PaymentServices.Shared.Infrastructure;
 using PaymentServices.Shared.Interfaces;
@@ -21,17 +23,20 @@ public sealed class AccountResolutionFunction
     private readonly IAccountResolutionService _resolutionService;
     private readonly ITransactionStateRepository _transactionStateRepository;
     private readonly IServiceBusPublisher _publisher;
+    private readonly AccountResolutionSettings _settings;
     private readonly ILogger<AccountResolutionFunction> _logger;
 
     public AccountResolutionFunction(
         IAccountResolutionService resolutionService,
         ITransactionStateRepository transactionStateRepository,
         IServiceBusPublisher publisher,
+        IOptions<AccountResolutionSettings> settings,
         ILogger<AccountResolutionFunction> logger)
     {
         _resolutionService = resolutionService;
         _transactionStateRepository = transactionStateRepository;
         _publisher = publisher;
+        _settings = settings.Value;
         _logger = logger;
     }
 
@@ -59,16 +64,28 @@ public sealed class AccountResolutionFunction
             var sourceTask = _resolutionService.ResolveAsync(
                 message.Source.AccountNumber, cancellationToken);
 
-            var destinationTask = _resolutionService.ResolveAsync(
-                message.Destination.AccountNumber, cancellationToken);
+            Task<AccountResolutionResult?>? destinationTask = null;
+            if (_settings.DESTINATION_ACCOUNT_LOOKUP_ENABLED)
+            {
+                destinationTask = _resolutionService.ResolveAsync(
+                    message.Destination.AccountNumber, cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Destination account lookup skipped by configuration. EvolveId={EvolveId}",
+                    message.EvolveId);
+            }
 
-            await Task.WhenAll(sourceTask, destinationTask);
+            await Task.WhenAll(sourceTask, destinationTask ?? Task.CompletedTask);
 
             var sourceResult = await sourceTask;
-            var destinationResult = await destinationTask;
+            var destinationResult = destinationTask is not null
+                ? await destinationTask
+                : null;
 
-            // Fail fast if either account not found
-            if (sourceResult is null || destinationResult is null)
+            // Fail fast if source lookup fails, or destination lookup fails when enabled
+            if (sourceResult is null || (_settings.DESTINATION_ACCOUNT_LOOKUP_ENABLED && destinationResult is null))
             {
                 var failureReason = sourceResult is null
                     ? $"Source account not found: {message.Source.AccountNumber}"
@@ -98,10 +115,13 @@ public sealed class AccountResolutionFunction
             message.Source.RemoteAccountId = sourceResult.RemoteAccountId;
             message.Source.EntityId = sourceResult.EntityId;
 
-            message.Destination.AccountId = destinationResult.AccountId;
-            message.Destination.LedgerId = destinationResult.LedgerId;
-            message.Destination.RemoteAccountId = destinationResult.RemoteAccountId;
-            message.Destination.EntityId = destinationResult.EntityId;
+            if (destinationResult is not null)
+            {
+                message.Destination.AccountId = destinationResult.AccountId;
+                message.Destination.LedgerId = destinationResult.LedgerId;
+                message.Destination.RemoteAccountId = destinationResult.RemoteAccountId;
+                message.Destination.EntityId = destinationResult.EntityId;
+            }
 
             // Update Cosmos transaction state
             await _transactionStateRepository.UpdateAsync(
@@ -112,9 +132,13 @@ public sealed class AccountResolutionFunction
                     tx.SourceAccountId = sourceResult.AccountId;
                     tx.SourceLedgerId = sourceResult.LedgerId;
                     tx.SourceEntityId = sourceResult.EntityId;
-                    tx.DestinationAccountId = destinationResult.AccountId;
-                    tx.DestinationLedgerId = destinationResult.LedgerId;
-                    tx.DestinationEntityId = destinationResult.EntityId;
+
+                    if (destinationResult is not null)
+                    {
+                        tx.DestinationAccountId = destinationResult.AccountId;
+                        tx.DestinationLedgerId = destinationResult.LedgerId;
+                        tx.DestinationEntityId = destinationResult.EntityId;
+                    }
                 },
                 cancellationToken);
 
@@ -126,7 +150,9 @@ public sealed class AccountResolutionFunction
 
             _logger.LogInformation(
                 "AccountResolution completed. EvolveId={EvolveId} SourceAccountId={SourceAccountId} DestinationAccountId={DestinationAccountId}",
-                message.EvolveId, sourceResult.AccountId, destinationResult.AccountId);
+                message.EvolveId,
+                sourceResult.AccountId,
+                destinationResult?.AccountId ?? "skipped");
 
             await messageActions.CompleteMessageAsync(serviceBusMessage, cancellationToken);
         }
