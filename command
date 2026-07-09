@@ -124,14 +124,18 @@ public sealed class PaymentOrchestrator : IPaymentOrchestrator
             RequestStatus.INITIATED,
             additionalInfo: new { Message = "Submitted to Gateway tptch/send" });
 
-        await _paymentCosmosDB.PatchItemAsync(payment, gatewaySubmissionPatches);
+        payment = await _paymentCosmosDB.PatchItemAsync(payment, gatewaySubmissionPatches) ?? payment;
+        AppendStatusHistory(payment, RequestStage.ACCOUNTLOOKUP, RequestStatus.INITIATED,
+            new { Message = "Submitted to Gateway tptch/send" });
 
         var screeningPassedPatches = EvolvePaymentRequestHelper.GetStatusPatchOperation(
             RequestStage.ACCOUNTLOOKUP,
             RequestStatus.COMPLETED,
             additionalInfo: new { Message = "Screening and limits passed" });
 
-        await _paymentCosmosDB.PatchItemAsync(payment, screeningPassedPatches);
+        payment = await _paymentCosmosDB.PatchItemAsync(payment, screeningPassedPatches) ?? payment;
+        AppendStatusHistory(payment, RequestStage.ACCOUNTLOOKUP, RequestStatus.COMPLETED,
+            new { Message = "Screening and limits passed" });
 
         payment.Stage = RequestStage.ACCOUNTLOOKUP.ToString();
         payment.Status = RequestStatus.INITIATED.ToString();
@@ -141,6 +145,22 @@ public sealed class PaymentOrchestrator : IPaymentOrchestrator
             payment.EvolveId);
 
         return payment;
+    }
+
+    private static void AppendStatusHistory(
+        EvolvePaymentRequest payment,
+        RequestStage stage,
+        RequestStatus status,
+        object? additionalInfo)
+    {
+        payment.StatusHistory ??= new List<StatusHistory>();
+        payment.StatusHistory.Add(new StatusHistory
+        {
+            StatusDate = DateTime.UtcNow.ToCosmosDateTime(),
+            Stage = stage.ToString(),
+            Status = status.ToString(),
+            AddInfo = additionalInfo
+        });
     }
 }
 
@@ -228,6 +248,20 @@ public class PaymentOrchestratorTests
 
         payment.Stage.Should().Be(RequestStage.ACCOUNTLOOKUP.ToString());
         payment.Status.Should().Be(RequestStatus.INITIATED.ToString());
+    }
+
+    [Fact]
+    public async Task ProcessAsync_AfterGatewayCall_AppendsScreeningAndLimitsStatusToHistory()
+    {
+        var payment = TestDataBuilder.AnEvolvePaymentAtStage(RequestStage.RTP_API);
+
+        await _sut.ProcessAsync(payment);
+
+        payment.StatusHistory.Should().Contain(history =>
+            history.Stage == RequestStage.ACCOUNTLOOKUP.ToString()
+            && history.Status == RequestStatus.COMPLETED.ToString()
+            && history.AddInfo is not null
+            && history.AddInfo.GetType().GetProperty("Message")?.GetValue(history.AddInfo)?.ToString() == "Screening and limits passed");
     }
 
     [Fact]
