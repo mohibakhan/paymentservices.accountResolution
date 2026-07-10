@@ -1,20 +1,13 @@
-[Fact]
-public void Validate_WhenSoftDescriptorHasValidAddress_NoError()
-{
-    var req = TestDataBuilder.AValidBasicRequest();
-    req.SoftDescriptor = new SoftDescriptor
-    {
-        Name = "Test Merchant",
-        Address = new Address
-        {
-            AddressLines = new List<string> { "200 Main Street" },
-            City = "Omaha",
-            County = "055",           // 3-char county code
-            StateCode = "NE",         // real US state
-            PostalCode = "68102",     // valid US 5-digit
-            CountryISOCode = "840"    // US, ISO numeric
-        }
-    };
-    _sut.TestValidate(req)
-        .ShouldNotHaveValidationErrorFor("SoftDescriptor.Address");
-}
+PaymentServices.RTPSend.UnitTests.Validators.BasicPaymentRequestValidatorTests.Validate_WhenSoftDescriptorHasValidAddress_NoError
+   Source: BasicPaymentRequestValidatorTests.cs line 144
+   Duration: 6 ms
+
+  Message: 
+FluentValidation.AsyncValidatorInvokedSynchronouslyException : BasicPaymentRequestValidator contains asynchronous rules - please use the asynchronous test methods instead.
+
+  Stack Trace: 
+ValidationTestExtension.TestValidate[T](IValidator`1 validator, ValidationContext`1 context)
+ValidationTestExtension.TestValidate[T](IValidator`1 validator, T objectToTest, Action`1 options)
+BasicPaymentRequestValidatorTests.Validate_WhenSoftDescriptorHasValidAddress_NoError() line 160
+MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
