@@ -1,181 +1,122 @@
-using Azure.Messaging.ServiceBus;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PaymentServices.RTPSend.Constants;
-using PaymentServices.RTPSend.Exceptions;
-using PaymentServices.RTPSend.Helpers;
-using PaymentServices.RTPSend.Interface.Adapters;
-using PaymentServices.RTPSend.Interface.Services;
-using PaymentServices.RTPSend.Models;
-using PaymentServices.RTPSend.Models.Domain;
-using PaymentServices.RTPSend.Services;
-using PaymentServices.RTPSend.Settings;
-using System.Text.Json;
+Microsoft.Azure.Cosmos.CosmosException
+  HResult=0x80131500
+  Source=Microsoft.Azure.Cosmos.Client
+  StackTrace:
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPartitionProvider.TryGetPartitionedQueryExecutionInfo(String querySpecJsonString, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean hybridSearchSkipOrderByRewrite, GeospatialType geospatialType)
+   at Microsoft.Azure.Cosmos.CosmosQueryClientCore.TryGetPartitionedQueryExecutionInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.CosmosQueryClientCore.TryGetPartitionedQueryExecutionInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryPlanAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryPlanAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanRetriever.GetQueryPlanWithServiceInteropAsync(CosmosQueryClient queryClient, SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, GeospatialType geospatialType, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanRetriever.GetQueryPlanWithServiceInteropAsync(CosmosQueryClient queryClient, SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, GeospatialType geospatialType, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.GetPartitionedQueryExecutionInfoAsync(CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ContainerQueryProperties containerQueryProperties, ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.GetPartitionedQueryExecutionInfoAsync(CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ContainerQueryProperties containerQueryProperties, ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.TryCreateCoreContextAsync(DocumentContainer documentContainer, CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.TryCreateCoreContextAsync(DocumentContainer documentContainer, CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.<>c__DisplayClass7_0.<Create>b__1(ITrace trace, CancellationToken innerCancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.AsyncLazy`1.GetValueAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.AsyncLazy`1.GetValueAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.LazyQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.LazyQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.NameCacheStaleRetryQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.NameCacheStaleRetryQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.CatchAllQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.CatchAllQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.Query.QueryIterator.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.Query.QueryIterator.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore.<>c__DisplayClass7_0.<ReadNextAsync>b__0()
+   at Microsoft.Azure.Cosmos.TaskHelper.RunInlineIfNeededAsync[TResult](Func`1 task)
+   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.FeedIteratorCore`1.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.FeedIteratorCore`1.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
+   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore`1.<>c__DisplayClass6_0.<ReadNextAsync>b__0(ITrace trace)
+   at Microsoft.Azure.Cosmos.ClientContextCore.RunWithDiagnosticsHelperAsync[TResult](String containerName, String databaseName, OperationType operationType, ITrace trace, Func`2 task, Nullable`1 openTelemetry, RequestOptions requestOptions, Nullable`1 resourceType)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.ClientContextCore.RunWithDiagnosticsHelperAsync[TResult](String containerName, String databaseName, OperationType operationType, ITrace trace, Func`2 task, Nullable`1 openTelemetry, RequestOptions requestOptions, Nullable`1 resourceType)
+   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperWithRootTraceAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, TraceComponent traceComponent, TraceLevel traceLevel, Nullable`1 resourceType)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperWithRootTraceAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, TraceComponent traceComponent, TraceLevel traceLevel, Nullable`1 resourceType)
+   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, Nullable`1 resourceType, TraceComponent traceComponent, TraceLevel traceLevel)
+   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore`1.ReadNextAsync(CancellationToken cancellationToken)
+   at Evolve.Digital.LedgerService.Shared.Services.LedgerService.UpdateLedgerItemStatus(String ledgerId, String entryId, String status)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Evolve.Digital.LedgerService.Shared.Services.LedgerService.UpdateLedgerItemStatus(String ledgerId, String entryId, String status)
+   at Evolve.Digital.LedgerService.Shared.Internal.LedgerInternalClient.UpdateEntryStatusAsync(UpdateEntryStatusRequest request)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Evolve.Digital.LedgerService.Shared.Internal.LedgerInternalClient.UpdateEntryStatusAsync(UpdateEntryStatusRequest request)
+   at PaymentServices.Transfer.Functions.TptchStatusFunction.RunAsync(HttpRequestData req, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at PaymentServices.Transfer.Functions.TptchStatusFunction.RunAsync(HttpRequestData req, CancellationToken cancellationToken)
+   at PaymentServices.Transfer.DirectFunctionExecutor.ExecuteAsync(FunctionContext context)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at PaymentServices.Transfer.DirectFunctionExecutor.ExecuteAsync(FunctionContext context)
+   at Microsoft.Azure.Functions.Worker.Pipeline.FunctionExecutionMiddleware.Invoke(FunctionContext context)
+   at Microsoft.Extensions.Hosting.MiddlewareWorkerApplicationBuilderExtensions.<>c.<UseFunctionExecutionMiddleware>b__1_2(FunctionContext context)
+   at Microsoft.Azure.Functions.Worker.OutputBindings.OutputBindingsMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Functions.Worker.OutputBindings.OutputBindingsMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
+   at Microsoft.Extensions.Hosting.MiddlewareWorkerApplicationBuilderExtensions.<>c__DisplayClass2_0.<UseOutputBindingsMiddleware>b__3(FunctionContext context)
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.FunctionsHttpProxyingMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.ExecutionContextCallback(Object s)
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext()
+   at System.Threading.Tasks.AwaitTaskContinuation.RunOrScheduleAction(Action action, Boolean allowInlining)
+   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.SetResult(TResult result)
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.DefaultHttpCoordinator.SetFunctionContextAsync(String invocationId, FunctionContext context)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.ExecutionContextCallback(Object s)
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext()
+   at System.Threading.Tasks.AwaitTaskContinuation.RunOrScheduleAction(Action action, Boolean allowInlining)
+   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
+   at System.Threading.Tasks.Task`1.TrySetResult(TResult result)
+   at System.Threading.Tasks.Task.CancellationPromise`1.System.Threading.Tasks.ITaskCompletionAction.Invoke(Task completingTask)
+   at System.Threading.Tasks.Task.RunOrQueueCompletionAction(ITaskCompletionAction completionAction, Boolean allowInlining)
+   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
+   at System.Threading.Tasks.Task`1.TrySetResult(TResult result)
+   at System.Threading.Tasks.TaskCompletionSource`1.SetResult(TResult result)
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.ContextReference.InvokeFunctionAsync()
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.DefaultHttpCoordinator.RunFunctionInvocationAsync(String invocationId)
+   at Microsoft.AspNetCore.Http.FunctionsHttpContextExtensions.InvokeFunctionAsync(HttpContext context)
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.Invoke(HttpContext httpContext)
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.WorkerRequestServicesMiddleware.Invoke(HttpContext context)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.WorkerRequestServicesMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.HostFiltering.HostFilteringMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequestsAsync[TContext](IHttpApplication`1 application)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequestsAsync[TContext](IHttpApplication`1 application)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.HttpConnection.ProcessRequestsAsync[TContext](IHttpApplication`1 httpApplication)
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.HttpConnection.ProcessRequestsAsync[TContext](IHttpApplication`1 httpApplication)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.ExecuteAsync()
+   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.ExecuteAsync()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.System.Threading.IThreadPoolWorkItem.Execute()
+   at System.Threading.ThreadPoolWorkQueue.Dispatch()
+   at System.Threading.PortableThreadPool.WorkerThread.WorkerThreadStart()
+   at System.Threading.Thread.StartCallback()
 
-namespace PaymentServices.RTPSend.Functions;
 
-/// <summary>
-/// Drains the <c>rtpsend-tabapay-retry</c> subscription on the shared
-/// <c>payment-processing</c> topic (filtered to Subject =
-/// <see cref="PaymentRequestConstants.TabaPaySendRetrySubject"/>). Messages land
-/// here (with a backoff delay) when a TabaPay send fails transiently, so the call
-/// is retried later instead of redelivering the outcome message in an instant loop.
-///
-/// Each delivery re-loads the Cosmos doc, re-attempts the TabaPay send, and lets
-/// <see cref="TabaPaySendFlow"/> decide the disposition: complete on success,
-/// dead-letter on a non-retryable failure, or schedule the next backed-off retry
-/// until <c>MaxTabaPayRetries</c> is reached (then dead-letter).
-///
-/// Once the TabaPay outcome is FINAL — success here, or either terminal branch in
-/// TabaPaySendFlow — Transfer's tptch/status endpoint is called so it can update
-/// the source-debit ledger entry's status. The ledger pointer is read off the
-/// payment document (HandlePaymentOutcome persisted it there), since the retry
-/// message itself carries only the evolveId and attempt count.
-///
-/// MANUAL SETTLE, like <see cref="HandlePaymentOutcome"/>.
-/// </summary>
-public class HandleTabaPayRetry
-{
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
-    };
+Inner Exception 1:
+ExpectedQueryPartitionProviderException: {"errors":[{"severity":"Error","location":{"start":22,"end":24},"code":"SC2001","message":"Identifier 'id' could not be resolved."}]}
 
-    private readonly IPaymentCosmosDBAdapter _paymentCosmosDB;
-    private readonly ITabaPaySendService _tabaPay;
-    private readonly IServiceBusMessageService _serviceBus;
-    private readonly ITransferStatusClient _transferStatus;
-    private readonly RtpSendSettings _settings;
-    private readonly ILogger<HandleTabaPayRetry> _logger;
-
-    public HandleTabaPayRetry(
-        IPaymentCosmosDBAdapter paymentCosmosDB,
-        ITabaPaySendService tabaPay,
-        IServiceBusMessageService serviceBus,
-        ITransferStatusClient transferStatus,
-        IOptions<RtpSendSettings> settings,
-        ILogger<HandleTabaPayRetry> logger)
-    {
-        _paymentCosmosDB = paymentCosmosDB;
-        _tabaPay = tabaPay;
-        _serviceBus = serviceBus;
-        _transferStatus = transferStatus;
-        _settings = settings.Value;
-        _logger = logger;
-    }
-
-    [Function(nameof(HandleTabaPayRetry))]
-    public async Task Run(
-        [ServiceBusTrigger(
-            topicName: "payment-processing",
-            subscriptionName: "rtpsend-tabapay-retry",
-            Connection = "SERVICE_BUS_CONNSTRING")]
-        ServiceBusReceivedMessage message,
-        ServiceBusMessageActions messageActions,
-        CancellationToken cancellationToken)
-    {
-        TabaPayRetryMessage? retry;
-        try
-        {
-            retry = JsonSerializer.Deserialize<TabaPayRetryMessage>(message.Body.ToString(), _jsonOptions);
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex,
-                "Cannot deserialize TabaPay retry message {MessageId}; dead-lettering.", message.MessageId);
-            await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                "DeserializeError", ex.Message, message.MessageId, cancellationToken);
-            return;
-        }
-
-        if (retry is null || string.IsNullOrWhiteSpace(retry.EvolveId))
-        {
-            _logger.LogWarning(
-                "TabaPay retry message {MessageId} has no evolveId; dead-lettering.", message.MessageId);
-            await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                "MissingEvolveId", "Retry message had no evolveId", message.MessageId, cancellationToken);
-            return;
-        }
-
-        _logger.LogInformation(
-            "TabaPay retry received. EvolveId={EvolveId} Attempt={Attempt} DeliveryCount={DeliveryCount}",
-            retry.EvolveId, retry.Attempt, message.DeliveryCount);
-
-        try
-        {
-            var payment = (await _paymentCosmosDB.FindAllItemsAsync(retry.EvolveId)).FirstOrDefault();
-            if (payment is null)
-            {
-                // The doc should exist (the original outcome found it). Dead-letter
-                // for investigation — the ledger has already been debited.
-                _logger.LogError(
-                    "No payment doc for evolveId {EvolveId} on TabaPay retry; dead-lettering.", retry.EvolveId);
-                await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                    "PaymentDocNotFound", $"No RTPSend payment doc for evolveId {retry.EvolveId}",
-                    retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            // Idempotency / terminal guards — never re-send a settled payment.
-            if (payment.Status == RequestStatus.COMPLETED.ToString())
-            {
-                _logger.LogInformation(
-                    "Payment {EvolveId} already COMPLETED; completing retry message.", retry.EvolveId);
-                await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            if (payment.Status == RequestStatus.FAILED_TABAPAY.ToString()
-                || payment.Status == RequestStatus.FAILED_NSF.ToString())
-            {
-                _logger.LogInformation(
-                    "Payment {EvolveId} already terminal ({Status}); completing retry message.",
-                    retry.EvolveId, payment.Status);
-                await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            TabaPaySendResult sendResult;
-            try
-            {
-                sendResult = await _tabaPay.ProcessPayment(payment);
-            }
-            catch (TabaPayProcessingException ex)
-            {
-                // TabaPaySendFlow decides: non-retryable → notify + dead-letter;
-                // retries exhausted → notify + dead-letter; otherwise schedule the
-                // next backed-off retry. Both TERMINAL branches also report FAILED
-                // to Transfer's tptch/status (using the pointer on the payment doc).
-                await TabaPaySendFlow.HandleFailureAsync(
-                    _serviceBus, _transferStatus, _logger, _settings.MaxTabaPayRetries,
-                    payment, ex, retry.Attempt, message, messageActions, cancellationToken);
-                return;
-            }
-
-            _logger.LogInformation(
-                "Payment {EvolveId} COMPLETED via TabaPay on retry attempt {Attempt}.", retry.EvolveId, retry.Attempt);
-
-            // The TabaPay outcome is now final (success) — tell Transfer so it can
-            // mark the ledger entry COMPLETED. Best-effort; never throws.
-            await _transferStatus.ReportStatusAsync(
-                payment.EvolveId,
-                TransferStatusClient.CompletedStatus,
-                payment.LedgerEntryId,
-                payment.LedgerId,
-                cancellationToken);
-
-            await TabaPaySendFlow.PublishSuccessNotificationAsync(
-                _serviceBus, _logger, sendResult.Document, sendResult.Response);
-
-            await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Unexpected error on TabaPay retry for evolveId {EvolveId}; abandoning.", retry.EvolveId);
-            await TabaPaySendFlow.AbandonAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-        }
-    }
-}
+Inner Exception 2:
+COMException: 0x800A0B00
