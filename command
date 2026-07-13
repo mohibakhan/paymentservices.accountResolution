@@ -1,122 +1,37 @@
-Microsoft.Azure.Cosmos.CosmosException
-  HResult=0x80131500
-  Source=Microsoft.Azure.Cosmos.Client
-  StackTrace:
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPartitionProvider.TryGetPartitionedQueryExecutionInfo(String querySpecJsonString, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean hybridSearchSkipOrderByRewrite, GeospatialType geospatialType)
-   at Microsoft.Azure.Cosmos.CosmosQueryClientCore.TryGetPartitionedQueryExecutionInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.CosmosQueryClientCore.TryGetPartitionedQueryExecutionInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean requireFormattableOrderByQuery, Boolean isContinuationExpected, Boolean allowNonValueAggregateQuery, Boolean hasLogicalPartitionKey, Boolean allowDCount, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryInfoAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryPlanAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanHandler.TryGetQueryPlanAsync(SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, GeospatialType geospatialType, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanRetriever.GetQueryPlanWithServiceInteropAsync(CosmosQueryClient queryClient, SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, GeospatialType geospatialType, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.QueryPlan.QueryPlanRetriever.GetQueryPlanWithServiceInteropAsync(CosmosQueryClient queryClient, SqlQuerySpec sqlQuerySpec, ResourceType resourceType, PartitionKeyDefinition partitionKeyDefinition, VectorEmbeddingPolicy vectorEmbeddingPolicy, Boolean hasLogicalPartitionKey, GeospatialType geospatialType, Boolean useSystemPrefix, Boolean isHybridSearchQueryPlanOptimizationDisabled, ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.GetPartitionedQueryExecutionInfoAsync(CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ContainerQueryProperties containerQueryProperties, ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.GetPartitionedQueryExecutionInfoAsync(CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ContainerQueryProperties containerQueryProperties, ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.TryCreateCoreContextAsync(DocumentContainer documentContainer, CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.TryCreateCoreContextAsync(DocumentContainer documentContainer, CosmosQueryContext cosmosQueryContext, InputParameters inputParameters, ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.CosmosQueryExecutionContextFactory.<>c__DisplayClass7_0.<Create>b__1(ITrace trace, CancellationToken innerCancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.AsyncLazy`1.GetValueAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.AsyncLazy`1.GetValueAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.LazyQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.LazyQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.NameCacheStaleRetryQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.NameCacheStaleRetryQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.CatchAllQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.Core.Pipeline.CatchAllQueryPipelineStage.MoveNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.Query.QueryIterator.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.Query.QueryIterator.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore.<>c__DisplayClass7_0.<ReadNextAsync>b__0()
-   at Microsoft.Azure.Cosmos.TaskHelper.RunInlineIfNeededAsync[TResult](Func`1 task)
-   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.FeedIteratorCore`1.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.FeedIteratorCore`1.ReadNextAsync(ITrace trace, CancellationToken cancellationToken)
-   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore`1.<>c__DisplayClass6_0.<ReadNextAsync>b__0(ITrace trace)
-   at Microsoft.Azure.Cosmos.ClientContextCore.RunWithDiagnosticsHelperAsync[TResult](String containerName, String databaseName, OperationType operationType, ITrace trace, Func`2 task, Nullable`1 openTelemetry, RequestOptions requestOptions, Nullable`1 resourceType)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.ClientContextCore.RunWithDiagnosticsHelperAsync[TResult](String containerName, String databaseName, OperationType operationType, ITrace trace, Func`2 task, Nullable`1 openTelemetry, RequestOptions requestOptions, Nullable`1 resourceType)
-   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperWithRootTraceAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, TraceComponent traceComponent, TraceLevel traceLevel, Nullable`1 resourceType)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperWithRootTraceAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, TraceComponent traceComponent, TraceLevel traceLevel, Nullable`1 resourceType)
-   at Microsoft.Azure.Cosmos.ClientContextCore.OperationHelperAsync[TResult](String operationName, String containerName, String databaseName, OperationType operationType, RequestOptions requestOptions, Func`2 task, Nullable`1 openTelemetry, Nullable`1 resourceType, TraceComponent traceComponent, TraceLevel traceLevel)
-   at Microsoft.Azure.Cosmos.FeedIteratorInlineCore`1.ReadNextAsync(CancellationToken cancellationToken)
-   at Evolve.Digital.LedgerService.Shared.Services.LedgerService.UpdateLedgerItemStatus(String ledgerId, String entryId, String status)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Evolve.Digital.LedgerService.Shared.Services.LedgerService.UpdateLedgerItemStatus(String ledgerId, String entryId, String status)
-   at Evolve.Digital.LedgerService.Shared.Internal.LedgerInternalClient.UpdateEntryStatusAsync(UpdateEntryStatusRequest request)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Evolve.Digital.LedgerService.Shared.Internal.LedgerInternalClient.UpdateEntryStatusAsync(UpdateEntryStatusRequest request)
-   at PaymentServices.Transfer.Functions.TptchStatusFunction.RunAsync(HttpRequestData req, CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at PaymentServices.Transfer.Functions.TptchStatusFunction.RunAsync(HttpRequestData req, CancellationToken cancellationToken)
-   at PaymentServices.Transfer.DirectFunctionExecutor.ExecuteAsync(FunctionContext context)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at PaymentServices.Transfer.DirectFunctionExecutor.ExecuteAsync(FunctionContext context)
-   at Microsoft.Azure.Functions.Worker.Pipeline.FunctionExecutionMiddleware.Invoke(FunctionContext context)
-   at Microsoft.Extensions.Hosting.MiddlewareWorkerApplicationBuilderExtensions.<>c.<UseFunctionExecutionMiddleware>b__1_2(FunctionContext context)
-   at Microsoft.Azure.Functions.Worker.OutputBindings.OutputBindingsMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Functions.Worker.OutputBindings.OutputBindingsMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
-   at Microsoft.Extensions.Hosting.MiddlewareWorkerApplicationBuilderExtensions.<>c__DisplayClass2_0.<UseOutputBindingsMiddleware>b__3(FunctionContext context)
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.FunctionsHttpProxyingMiddleware.Invoke(FunctionContext context, FunctionExecutionDelegate next)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.ExecutionContextCallback(Object s)
-   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext()
-   at System.Threading.Tasks.AwaitTaskContinuation.RunOrScheduleAction(Action action, Boolean allowInlining)
-   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.SetResult(TResult result)
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.DefaultHttpCoordinator.SetFunctionContextAsync(String invocationId, FunctionContext context)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.ExecutionContextCallback(Object s)
-   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
-   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext()
-   at System.Threading.Tasks.AwaitTaskContinuation.RunOrScheduleAction(Action action, Boolean allowInlining)
-   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
-   at System.Threading.Tasks.Task`1.TrySetResult(TResult result)
-   at System.Threading.Tasks.Task.CancellationPromise`1.System.Threading.Tasks.ITaskCompletionAction.Invoke(Task completingTask)
-   at System.Threading.Tasks.Task.RunOrQueueCompletionAction(ITaskCompletionAction completionAction, Boolean allowInlining)
-   at System.Threading.Tasks.Task.RunContinuations(Object continuationObject)
-   at System.Threading.Tasks.Task`1.TrySetResult(TResult result)
-   at System.Threading.Tasks.TaskCompletionSource`1.SetResult(TResult result)
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.ContextReference.InvokeFunctionAsync()
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.DefaultHttpCoordinator.RunFunctionInvocationAsync(String invocationId)
-   at Microsoft.AspNetCore.Http.FunctionsHttpContextExtensions.InvokeFunctionAsync(HttpContext context)
-   at Microsoft.AspNetCore.Routing.EndpointMiddleware.Invoke(HttpContext httpContext)
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.WorkerRequestServicesMiddleware.Invoke(HttpContext context)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore.WorkerRequestServicesMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.HostFiltering.HostFilteringMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequestsAsync[TContext](IHttpApplication`1 application)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequestsAsync[TContext](IHttpApplication`1 application)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.HttpConnection.ProcessRequestsAsync[TContext](IHttpApplication`1 httpApplication)
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.HttpConnection.ProcessRequestsAsync[TContext](IHttpApplication`1 httpApplication)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.ExecuteAsync()
-   at System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start[TStateMachine](TStateMachine& stateMachine)
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.ExecuteAsync()
-   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.KestrelConnection`1.System.Threading.IThreadPoolWorkItem.Execute()
-   at System.Threading.ThreadPoolWorkQueue.Dispatch()
-   at System.Threading.PortableThreadPool.WorkerThread.WorkerThreadStart()
-   at System.Threading.Thread.StartCallback()
+    public async Task<string?> UpdateLedgerItemStatus(string ledgerId, string entryId, string status)
+    {
+        string partitionKeyValue = ledgerId;
+        string query = $"SELECT * FROM c WHERE c.id='{entryId}'";
 
+        QueryDefinition queryDefinition = new QueryDefinition(query);
+        FeedIterator<dynamic> queryResultSetIterator = _entryContainer.GetItemQueryIterator<dynamic>(
+            queryDefinition,
+            requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKeyValue) }
+        );
 
-Inner Exception 1:
-ExpectedQueryPartitionProviderException: {"errors":[{"severity":"Error","location":{"start":22,"end":24},"code":"SC2001","message":"Identifier 'id' could not be resolved."}]}
+        while (queryResultSetIterator.HasMoreResults)
+        {
+            FeedResponse<dynamic> currentResultSet = await queryResultSetIterator.ReadNextAsync();
+            TransactionalBatch batch = _entryContainer.CreateTransactionalBatch(new PartitionKey(partitionKeyValue));
 
-Inner Exception 2:
-COMException: 0x800A0B00
+            foreach (var item in currentResultSet)
+            {
+                string id = item.id;
+                List<PatchOperation> operations = new List<PatchOperation>()
+                {
+                     { PatchOperation.Set("/status", status) },
+                     { PatchOperation.Set("/updatedAt", DateTime.UtcNow) }
+                };
+
+                batch.PatchItem(id, operations);
+            }
+
+            using TransactionalBatchResponse batchResponse = await batch.ExecuteAsync();
+            if (batchResponse.IsSuccessStatusCode)
+            {
+                return ($"LedgerEntry status updated to {status}.");
+            }
+        }
+
+        return ("Status not Updated");
+    }
