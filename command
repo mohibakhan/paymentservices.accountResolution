@@ -4,6 +4,7 @@ public string? TRANSFER_TPTCH_STATUS_URL { get; set; }
 
 
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PaymentServices.RTPSend.Settings;
@@ -17,22 +18,31 @@ public interface ITransferStatusClient
     /// "COMPLETED" on TabaPay success; "FAILED" only on a TERMINAL (non-retryable)
     /// TabaPay failure — retryable failures are NOT reported, since the payment is
     /// still being retried and hasn't finally failed.
-    ///
-    /// Best-effort: failures are logged, never thrown — the payment is already
-    /// settled and must not be re-processed because a status callback hiccupped.
     /// </summary>
     Task ReportStatusAsync(string evolveId, string status, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Typed HttpClient for Transfer's POST /api/tptch/status. Mirrors the
-/// GatewayClient pattern: a single config-driven URL with the Azure Functions
-/// key embedded as the ?code= query parameter.
+/// Typed HttpClient for Transfer's POST /api/tptch/status. Mirrors GatewayClient:
+/// config-driven URL (the Azure Functions key is embedded as the ?code= query
+/// parameter, as in GATEWAY_TPTCH_SEND_URL).
+///
+/// NOTE — unlike GatewayClient, this client is BEST-EFFORT and never throws.
+/// It is called AFTER the payment has already settled (TabaPay has run and the
+/// Service Bus message is about to be completed), so a failed status callback
+/// must not fail the function, trigger a redelivery, or re-process the payment.
+/// Failures are logged for follow-up instead.
 /// </summary>
 public sealed class TransferStatusClient : ITransferStatusClient
 {
     public const string CompletedStatus = "COMPLETED";
     public const string FailedStatus = "FAILED";
+
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
 
     private readonly HttpClient _httpClient;
     private readonly RtpSendSettings _settings;
@@ -51,42 +61,64 @@ public sealed class TransferStatusClient : ITransferStatusClient
     public async Task ReportStatusAsync(
         string evolveId, string status, CancellationToken cancellationToken = default)
     {
-        var url = _settings.TRANSFER_TPTCH_STATUS_URL;
-
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(_settings.TRANSFER_TPTCH_STATUS_URL))
         {
             _logger.LogWarning(
-                "TRANSFER_TPTCH_STATUS_URL not configured; skipping status callback. " +
+                "TRANSFER_TPTCH_STATUS_URL is not configured; skipping status callback. " +
                 "EvolveId={EvolveId} Status={Status}", evolveId, status);
             return;
         }
 
+        var body = new TptchStatusRequest
+        {
+            EvolveId = evolveId,
+            Status = status
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, _settings.TRANSFER_TPTCH_STATUS_URL)
+        {
+            Content = JsonContent.Create(body, options: _jsonOptions)
+        };
+
+        _logger.LogInformation(
+            "Calling Transfer tptch/status. EvolveId={EvolveId} Status={Status}", evolveId, status);
+
+        HttpResponseMessage response;
         try
         {
-            // The function key is embedded in the configured URL (?code=...),
-            // so no separate auth header is needed.
-            using var response = await _httpClient.PostAsJsonAsync(
-                url, new { evolveId, status }, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError(
-                    "tptch/status callback failed ({StatusCode}). EvolveId={EvolveId} Status={Status} Body={Body}",
-                    response.StatusCode, evolveId, status, body);
-                return;
-            }
-
-            _logger.LogInformation(
-                "Reported '{Status}' to Transfer tptch/status. EvolveId={EvolveId}", status, evolveId);
+            response = await _httpClient.SendAsync(request, cancellationToken);
         }
         catch (Exception ex)
         {
-            // Best-effort — never fail the payment because the status callback did.
+            // Best-effort: log and move on. The payment is already settled.
             _logger.LogError(ex,
-                "tptch/status callback threw. EvolveId={EvolveId} Status={Status}", evolveId, status);
+                "Transfer tptch/status call failed (transport). EvolveId={EvolveId} Status={Status}",
+                evolveId, status);
+            return;
         }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError(
+                "Transfer tptch/status returned {StatusCode}. EvolveId={EvolveId} Status={Status} Body={Body}",
+                (int)response.StatusCode, evolveId, status, responseBody);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Transfer tptch/status accepted. EvolveId={EvolveId} Status={Status} StatusCode={StatusCode}",
+            evolveId, status, (int)response.StatusCode);
     }
+}
+
+/// <summary>Body posted to Transfer's /api/tptch/status.</summary>
+public sealed class TptchStatusRequest
+{
+    public string EvolveId { get; set; } = string.Empty;
+
+    /// <summary>"COMPLETED" or "FAILED".</summary>
+    public string Status { get; set; } = string.Empty;
 }
 
 
