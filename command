@@ -1,37 +1,15 @@
-    public async Task<string?> UpdateLedgerItemStatus(string ledgerId, string entryId, string status)
-    {
-        string partitionKeyValue = ledgerId;
-        string query = $"SELECT * FROM c WHERE c.id='{entryId}'";
-
-        QueryDefinition queryDefinition = new QueryDefinition(query);
-        FeedIterator<dynamic> queryResultSetIterator = _entryContainer.GetItemQueryIterator<dynamic>(
-            queryDefinition,
-            requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKeyValue) }
-        );
-
-        while (queryResultSetIterator.HasMoreResults)
-        {
-            FeedResponse<dynamic> currentResultSet = await queryResultSetIterator.ReadNextAsync();
-            TransactionalBatch batch = _entryContainer.CreateTransactionalBatch(new PartitionKey(partitionKeyValue));
-
-            foreach (var item in currentResultSet)
-            {
-                string id = item.id;
-                List<PatchOperation> operations = new List<PatchOperation>()
-                {
-                     { PatchOperation.Set("/status", status) },
-                     { PatchOperation.Set("/updatedAt", DateTime.UtcNow) }
-                };
-
-                batch.PatchItem(id, operations);
-            }
-
-            using TransactionalBatchResponse batchResponse = await batch.ExecuteAsync();
-            if (batchResponse.IsSuccessStatusCode)
-            {
-                return ($"LedgerEntry status updated to {status}.");
-            }
-        }
-
-        return ("Status not Updated");
-    }
+Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+  HResult=0x80131500
+  Message='System.Text.Json.JsonElement' does not contain a definition for 'id'
+  Source=System.Linq.Expressions
+  StackTrace:
+   at System.Dynamic.UpdateDelegates.UpdateAndExecute1[T0,TRet](CallSite site, T0 arg0)
+   at Evolve.Digital.LedgerService.Shared.Services.LedgerService.<UpdateLedgerItemStatus>d__19.MoveNext()
+   at Evolve.Digital.LedgerService.Shared.Internal.LedgerInternalClient.<UpdateEntryStatusAsync>d__11.MoveNext()
+   at PaymentServices.Transfer.Functions.TptchStatusFunction.<RunAsync>d__4.MoveNext() in C:\Users\mxk221019\MyRepos\PaymentServices.Transfer\src\Functions\TptchStatusFunction.cs:line 83
+ 
+  This exception was originally thrown at this call stack:
+    [External Code]
+    PaymentServices.Transfer.Functions.TptchStatusFunction.RunAsync(Microsoft.Azure.Functions.Worker.Http.HttpRequestData, System.Threading.CancellationToken) in TptchStatusFunction.cs
+ 
+this is the error now
