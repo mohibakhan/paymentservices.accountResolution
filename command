@@ -1,120 +1,4 @@
-using Azure.Messaging.ServiceBus;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
-using PaymentServices.RTPSend.Helpers;
-using PaymentServices.RTPSend.Services;
-
-namespace PaymentServices.RTPSend.Functions;
-
-/// <summary>
-/// Service Bus Trigger — drains the <c>tabapay-webhook</c> subscription on the
-/// shared <c>payment-processing</c> topic (filtered to Subject =
-/// 'CreatePayment - Success' / 'CreatePayment - Failure').
-///
-/// Those notifications are published by <see cref="HandlePaymentOutcome"/> and
-/// <see cref="HandleTabaPayRetry"/> once a payment reaches a final state. This
-/// function forwards each one to TabaPay's webhook endpoint, telling them the
-/// final status of the transaction. The message body is posted as-is.
-///
-/// MANUAL SETTLE, consistent with the other consumers:
-///   • delivered            → complete
-///   • transient failure    → abandon (Service Bus redelivers; DLQ after
-///                            maxDeliveryCount)
-///   • terminal failure     → dead-letter (4xx / not configured — retrying
-///                            cannot help, so don't burn deliveries)
-/// </summary>
-public sealed class HandleTabaPayWebhook
-{
-    private readonly ITabaPayWebhookClient _webhookClient;
-    private readonly ILogger<HandleTabaPayWebhook> _logger;
-
-    public HandleTabaPayWebhook(
-        ITabaPayWebhookClient webhookClient,
-        ILogger<HandleTabaPayWebhook> logger)
-    {
-        _webhookClient = webhookClient;
-        _logger = logger;
-    }
-
-    [Function(nameof(HandleTabaPayWebhook))]
-    public async Task RunAsync(
-        [ServiceBusTrigger(
-            topicName: "payment-processing",
-            subscriptionName: "tabapay-webhook",
-            Connection = "SERVICE_BUS_CONNSTRING")]
-        ServiceBusReceivedMessage serviceBusMessage,
-        ServiceBusMessageActions messageActions,
-        CancellationToken cancellationToken)
-    {
-        var payload = serviceBusMessage.Body.ToString();
-        var subject = serviceBusMessage.Subject;
-
-        // evolveId is only pulled out for logging/correlation — the payload is
-        // forwarded to TabaPay exactly as published.
-        var evolveId = TryReadEvolveId(payload);
-
-        _logger.LogInformation(
-            "TabaPay webhook notification received. EvolveId={EvolveId} Subject={Subject} DeliveryCount={DeliveryCount}",
-            evolveId, subject, serviceBusMessage.DeliveryCount);
-
-        WebhookDeliveryResult result;
-        try
-        {
-            result = await _webhookClient.SendAsync(payload, subject, evolveId, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            // The client swallows its own failures, so anything here is unexpected.
-            _logger.LogError(ex,
-                "Unexpected error delivering TabaPay webhook. EvolveId={EvolveId}; abandoning.", evolveId);
-            await TabaPaySendFlow.AbandonAsync(messageActions, serviceBusMessage, _logger, evolveId, cancellationToken);
-            return;
-        }
-
-        if (result.Success)
-        {
-            await TabaPaySendFlow.CompleteAsync(messageActions, serviceBusMessage, _logger, evolveId, cancellationToken);
-            return;
-        }
-
-        if (result.IsRetryable)
-        {
-            _logger.LogWarning(
-                "TabaPay webhook delivery failed (retryable) for EvolveId={EvolveId}; abandoning for redelivery. {Detail}",
-                evolveId, result.Detail);
-            await TabaPaySendFlow.AbandonAsync(messageActions, serviceBusMessage, _logger, evolveId, cancellationToken);
-            return;
-        }
-
-        _logger.LogError(
-            "TabaPay webhook delivery failed (terminal) for EvolveId={EvolveId}; dead-lettering. {Detail}",
-            evolveId, result.Detail);
-        await TabaPaySendFlow.DeadLetterAsync(
-            messageActions, serviceBusMessage, _logger,
-            "TabaPayWebhookFailed", result.Detail ?? "Webhook delivery failed", evolveId, cancellationToken);
-    }
-
-    /// <summary>
-    /// Best-effort extraction of evolveId from the envelope for logging only.
-    /// Never throws — the payload is forwarded regardless.
-    /// </summary>
-    private static string? TryReadEvolveId(string payload)
-    {
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(payload);
-            return doc.RootElement.TryGetProperty("evolveId", out var value)
-                ? value.GetString()
-                : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-}
-
-
+using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -181,8 +65,18 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            Content = new StringContent(payload, Encoding.UTF8)
         };
+
+        // Bare "application/json" — no charset parameter. Some gateways parse it strictly.
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        // Be explicit about what we'll take back; absent Accept can trigger 406 on
+        // strict content-negotiating backends.
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        // .NET sends no User-Agent by default; some WAF rules reject that outright.
+        request.Headers.TryAddWithoutValidation("User-Agent", "PaymentServices.RTPSend/1.0");
 
         // Same auth as the TabaPay send call.
         request.Headers.TryAddWithoutValidation("x-Client-Id", _settings.TABAPAY_SEND_CLIENT_ID);
@@ -199,7 +93,7 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
         }
         catch (Exception ex)
         {
-            // Transport failure (DNS, connection reset, timeout) — transient.
+            // Transport failure — transient.
             _logger.LogError(ex,
                 "TabaPay webhook call failed (transport). EvolveId={EvolveId}", evolveId);
             return WebhookDeliveryResult.Retryable($"Transport failure: {ex.Message}");
@@ -215,15 +109,29 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var status = (int)response.StatusCode;
+        var responseContentType = response.Content.Headers.ContentType?.ToString();
 
-        // Mirrors TabaPaySendService's classification: 5xx / 429 / 408 clear on
-        // their own, so retry. Other 4xx are deterministic — the payload or
-        // endpoint is wrong and will fail identically every time — so terminal.
         var isRetryable = status >= 500 || status == 429 || status == 408;
 
-        _logger.LogError(
-            "TabaPay webhook returned {StatusCode} ({Disposition}). EvolveId={EvolveId} Body={Body}",
-            status, isRetryable ? "retryable" : "terminal", evolveId, body);
+        // An HTML body on a 4xx usually means a proxy/WAF rejected us, not the app.
+        var looksLikeEdgeRejection =
+            !isRetryable &&
+            responseContentType is not null &&
+            responseContentType.Contains("text/html", StringComparison.OrdinalIgnoreCase);
+
+        if (looksLikeEdgeRejection)
+        {
+            _logger.LogError(
+                "TabaPay webhook rejected at the edge (HTML error page, likely proxy/WAF, not payload). " +
+                "EvolveId={EvolveId} StatusCode={StatusCode} ContentType={ContentType} Body={Body}",
+                evolveId, status, responseContentType, body);
+        }
+        else
+        {
+            _logger.LogError(
+                "TabaPay webhook returned {StatusCode} ({Disposition}). EvolveId={EvolveId} ContentType={ContentType} Body={Body}",
+                status, isRetryable ? "retryable" : "terminal", evolveId, responseContentType, body);
+        }
 
         return isRetryable
             ? WebhookDeliveryResult.Retryable($"HTTP {status}: {body}")
