@@ -1,13 +1,3 @@
-/// <summary>TabaPay's webhook endpoint for final transaction status.</summary>
-public string? TABAPAY_WEBHOOK_URL { get; set; }
-
-
-"rtpSend:AppSettings:TABAPAY_WEBHOOK_URL": "https://<tabapay-webhook-endpoint>"
-
-services.AddHttpClient<ITabaPayWebhookClient, TabaPayWebhookClient>();
-
-
-
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -125,9 +115,6 @@ public sealed class HandleTabaPayWebhook
 }
 
 
-
-
-
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -151,16 +138,18 @@ public sealed record WebhookDeliveryResult(bool Success, bool IsRetryable, strin
 {
     public static WebhookDeliveryResult Ok() => new(true, false, null);
 
-    /// <summary>Transient (5xx / timeout / transport) — worth redelivering.</summary>
+    /// <summary>Transient (5xx / 408 / 429 / transport) — worth redelivering.</summary>
     public static WebhookDeliveryResult Retryable(string detail) => new(false, true, detail);
 
-    /// <summary>Terminal (4xx / not configured) — retrying won't help.</summary>
+    /// <summary>Terminal (other 4xx / not configured) — retrying won't help.</summary>
     public static WebhookDeliveryResult Terminal(string detail) => new(false, false, detail);
 }
 
 /// <summary>
 /// Typed HttpClient for TabaPay's transaction-status webhook. Mirrors the
-/// GatewayClient pattern: a single config-driven URL.
+/// GatewayClient pattern (config-driven URL) and uses the same authentication
+/// headers as TabaPaySendService: x-Client-Id / x-merchant-id /
+/// Ocp-Apim-Subscription-Key.
 /// </summary>
 public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
 {
@@ -195,6 +184,11 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
 
+        // Same auth as the TabaPay send call.
+        request.Headers.TryAddWithoutValidation("x-Client-Id", _settings.TABAPAY_SEND_CLIENT_ID);
+        request.Headers.TryAddWithoutValidation("x-merchant-id", _settings.TABAPAY_SEND_MERCHANT_ID);
+        request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _settings.TABAPAY_SEND_APIKEY);
+
         _logger.LogInformation(
             "Calling TabaPay webhook. EvolveId={EvolveId} Subject={Subject}", evolveId, subject);
 
@@ -205,7 +199,7 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
         }
         catch (Exception ex)
         {
-            // Transport failure — transient, worth redelivering.
+            // Transport failure (DNS, connection reset, timeout) — transient.
             _logger.LogError(ex,
                 "TabaPay webhook call failed (transport). EvolveId={EvolveId}", evolveId);
             return WebhookDeliveryResult.Retryable($"Transport failure: {ex.Message}");
@@ -222,9 +216,10 @@ public sealed class TabaPayWebhookClient : ITabaPayWebhookClient
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var status = (int)response.StatusCode;
 
-        // 4xx (except 408/429) means the payload/endpoint is wrong — retrying
-        // won't change the outcome, so treat it as terminal and dead-letter.
-        var isRetryable = status is 408 or 429 || status >= 500;
+        // Mirrors TabaPaySendService's classification: 5xx / 429 / 408 clear on
+        // their own, so retry. Other 4xx are deterministic — the payload or
+        // endpoint is wrong and will fail identically every time — so terminal.
+        var isRetryable = status >= 500 || status == 429 || status == 408;
 
         _logger.LogError(
             "TabaPay webhook returned {StatusCode} ({Disposition}). EvolveId={EvolveId} Body={Body}",
