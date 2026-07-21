@@ -1,252 +1,41 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PaymentServices.RTPSend.Constants;
-using PaymentServices.RTPSend.Exceptions;
-using PaymentServices.RTPSend.Helpers;
-using PaymentServices.RTPSend.Interface.Adapters;
-using PaymentServices.RTPSend.Interface.Services;
-using PaymentServices.RTPSend.Models.Cosmos;
-using PaymentServices.RTPSend.Models.Domain;
-using PaymentServices.RTPSend.Models.Request;
-using PaymentServices.RTPSend.Models.Response;
-using PaymentServices.RTPSend.Settings;
-
-namespace PaymentServices.RTPSend.Services;
-
-/// <summary>
-/// Single responsibility: POST to TabaPay, patch the Cosmos document with the
-/// outcome, return a <see cref="TabaPaySendResult"/>.
-/// </summary>
-public sealed class TabaPaySendService : ITabaPaySendService
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-    };
-
-    private readonly ILogger<TabaPaySendService> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly RtpSendSettings _settings;
-    private readonly IPaymentCosmosDBAdapter _paymentCosmosDB;
-
-    public TabaPaySendService(
-        ILogger<TabaPaySendService> logger,
-        IHttpClientFactory httpClientFactory,
-        IOptions<RtpSendSettings> settings,
-        IPaymentCosmosDBAdapter paymentCosmosDB)
-    {
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
-        _settings = settings.Value;
-        _paymentCosmosDB = paymentCosmosDB;
-    }
-
-    public async Task<TabaPaySendResult> ProcessPayment(EvolvePaymentRequest cosmosPaymentItem)
-    {
-        var tabapayRequest = TabaPayRequestHelper.ConvertEvolveToTabaPayRequest(
-            cosmosPaymentItem,
-            _settings.TABAPAY_SOURCE_ACCOUNT_ID);
-
-        // Tag every line emitted during this call — including the resilience
-        // handler's retry logs — with the correlation keys, so a single payment
-        // is traceable end-to-end even when many run concurrently.
-        using var scope = _logger.BeginScope(new Dictionary<string, object>
-        {
-            ["EvolveId"] = cosmosPaymentItem.EvolveId,
-            ["ReferenceId"] = tabapayRequest.ReferenceId
-        });
-
-        _logger.LogInformation("TabaPay processing for evolveId {EvolveId}", cosmosPaymentItem.EvolveId);
-
-        HttpResponseMessage httpResponse;
-        string rawBody;
-        var stopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            httpResponse = await SendTransactionAsync(tabapayRequest);
-            rawBody = await httpResponse.Content.ReadAsStringAsync();
-            stopwatch.Stop();
-
-            // Full body at Debug only — it can carry account numbers / PII.
-            _logger.LogDebug("TabaPay raw response ({Status}) in {ElapsedMs}ms: {Body}",
-                httpResponse.StatusCode, stopwatch.ElapsedMilliseconds, rawBody);
-        }
-        catch (HttpRequestException ex)
-        {
-            // Transport-level failure (DNS, connection reset, etc.) — transient, worth retrying.
-            stopwatch.Stop();
-            _logger.LogError(ex, "TabaPay HTTP call failed after {ElapsedMs}ms: {Message}",
-                stopwatch.ElapsedMilliseconds, ex.Message);
-            await PatchTransactionStatusAsync(
-                RequestStage.TABAPAY, RequestStatus.FAILED, $"HTTP error: {ex.Message}", cosmosPaymentItem);
-            throw new TabaPayProcessingException($"TabaPay HTTP call failed: {ex.Message}", ex, isRetryable: true);
-        }
-        catch (TaskCanceledException ex)
-        {
-            // Timeout — transient, worth retrying.
-            stopwatch.Stop();
-            _logger.LogError(ex, "TabaPay HTTP call timed out after {ElapsedMs}ms.", stopwatch.ElapsedMilliseconds);
-            await PatchTransactionStatusAsync(
-                RequestStage.TABAPAY, RequestStatus.FAILED, "Timeout calling TabaPay", cosmosPaymentItem);
-            throw new TabaPayProcessingException("TabaPay HTTP call timed out", ex, isRetryable: true);
-        }
-
-        var responseContentType = httpResponse.Content.Headers.ContentType?.ToString();
-
-        var tabaPayResponse = TryDeserialize(rawBody);
-        var isSuccess =
-            (int)httpResponse.StatusCode == (int)HttpStatusCode.OK
-            && tabaPayResponse?.Status == PaymentRequestConstants.TabaPayComplete
-            && tabaPayResponse.Sc == (int)HttpStatusCode.OK;
-
-        // Transient (retry): 5xx server faults, plus 429 (rate limited) and 408
-        // (request timeout) that survived the in-call resilience retries — those
-        // clear on their own given time. Deterministic failures (other 4xx like a
-        // bad softDescriptor, or an HTTP-200 business decline) fail identically on
-        // every retry, so they're terminal and get a distinct status.
-        var statusCode = (int)httpResponse.StatusCode;
-        var isRetryable = !isSuccess &&
-            (statusCode >= 500
-             || statusCode == (int)HttpStatusCode.TooManyRequests   // 429
-             || statusCode == (int)HttpStatusCode.RequestTimeout);  // 408
-
-        // A non-JSON body (typically an HTML error page) means something in front of
-        // TabaPay rejected us — proxy, APIM policy, WAF — rather than their app
-        // declining the payment. Without this the decline log is all nulls, because
-        // TryDeserialize can't parse HTML into a TabaPayResponse.
-        var looksLikeEdgeRejection =
-            !isSuccess &&
-            tabaPayResponse is null &&
-            responseContentType is not null &&
-            !responseContentType.Contains("json", StringComparison.OrdinalIgnoreCase);
-
-        await PatchTransactionStatusAsync(
-            RequestStage.TABAPAY,
-            isSuccess ? RequestStatus.COMPLETED
-                      : isRetryable ? RequestStatus.FAILED
-                                    : RequestStatus.FAILED_TABAPAY,
-            rawBody,
-            cosmosPaymentItem);
-
-        if (!isSuccess)
-        {
-            if (looksLikeEdgeRejection)
-            {
-                // Body is not PII — it's an error page from an intermediary — so it's
-                // safe to log in full here, and it's the only thing that identifies
-                // which hop rejected the call.
-                _logger.LogError(
-                    "TabaPay rejected at the edge (non-JSON error page, likely proxy/APIM/WAF, not a decline) " +
-                    "in {ElapsedMs}ms. HttpStatus={Status} ContentType={ContentType} Body={Body}",
-                    stopwatch.ElapsedMilliseconds,
-                    httpResponse.StatusCode,
-                    responseContentType,
-                    rawBody);
-            }
-            else
-            {
-                // Structured decline fields (no PII); the full body is at Debug above.
-                // Terminal declines log at Error so they alert separately from transient blips.
-                _logger.Log(
-                    isRetryable ? LogLevel.Warning : LogLevel.Error,
-                    "TabaPay non-success ({Retryability}) in {ElapsedMs}ms. " +
-                    "HttpStatus={Status} ContentType={ContentType} SC={Sc} EC={Ec} NetworkRC={NetworkRc} TabaStatus={TabaStatus}",
-                    isRetryable ? "retryable" : "terminal",
-                    stopwatch.ElapsedMilliseconds,
-                    httpResponse.StatusCode,
-                    responseContentType,
-                    tabaPayResponse?.Sc,
-                    tabaPayResponse?.Ec,
-                    tabaPayResponse?.NetworkRc,
-                    tabaPayResponse?.Status);
-            }
-
-            throw new TabaPayProcessingException(
-                $"TabaPay returned non-success. HTTP status: {httpResponse.StatusCode}. Response: {rawBody}",
-                isRetryable: isRetryable,
-                statusCode: httpResponse.StatusCode);
-        }
-
-        // Patch transaction IDs onto the Cosmos document
-        var patched = await PatchTabaPayIdsAsync(tabaPayResponse!, tabapayRequest.ReferenceId, cosmosPaymentItem);
-
-        // Reconciliation keys for matching this payment against TabaPay's ledger.
-        _logger.LogInformation(
-            "TabaPay COMPLETED in {ElapsedMs}ms. TransactionId={TransactionId} Network={Network} " +
-            "NetworkId={NetworkId} ApprovalCode={ApprovalCode}",
-            stopwatch.ElapsedMilliseconds,
-            tabaPayResponse!.TransactionId,
-            tabaPayResponse.Network,
-            tabaPayResponse.NetworkId,
-            tabaPayResponse.ApprovalCode);
-
-        return new TabaPaySendResult
-        {
-            Document = patched ?? cosmosPaymentItem,
-            Response = tabaPayResponse!,
-            RawResponse = rawBody
-        };
-    }
-
-    private async Task<HttpResponseMessage> SendTransactionAsync(TabapayPaymentRequest tabaPayRequest)
-    {
-        var client = _httpClientFactory.CreateClient(nameof(TabaPaySendService));
-
-        var json = JsonSerializer.Serialize(tabaPayRequest, _jsonOptions);
-        // Full request body at Debug only — contains account numbers / PII.
-        _logger.LogDebug("TabaPay request body: {Body}", json);
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, _settings.TABAPAY_SEND_URL)
-        {
-            Content = new StringContent(json, Encoding.UTF8)
-        };
-
-        // Bare "application/json" — no charset parameter. Some gateways parse it strictly.
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        // Be explicit about what we'll take back; absent Accept can trigger 406 on
-        // strict content-negotiating backends.
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-        // .NET sends no User-Agent by default; some WAF rules reject that outright.
-        request.Headers.TryAddWithoutValidation("User-Agent", "PaymentServices.RTPSend/1.0");
-
-        request.Headers.TryAddWithoutValidation("x-Client-Id", _settings.TABAPAY_SEND_CLIENT_ID);
-        request.Headers.TryAddWithoutValidation("x-merchant-id", _settings.TABAPAY_SEND_MERCHANT_ID);
-        request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _settings.TABAPAY_SEND_APIKEY);
-
-        return await client.SendAsync(request);
-    }
-
-    private static TabaPayResponse? TryDeserialize(string body)
-    {
-        if (string.IsNullOrWhiteSpace(body)) return null;
-        try { return JsonSerializer.Deserialize<TabaPayResponse>(body, _jsonOptions); }
-        catch (JsonException) { return null; }
-    }
-
-    private async Task<EvolvePaymentRequest?> PatchTabaPayIdsAsync(
-        TabaPayResponse tabaPayResponse,
-        string referenceId,
-        EvolvePaymentRequest request)
-    {
-        var patches = EvolvePaymentRequestHelper.GetTabaPaypatchoperation(
-            tabaPayResponse.TransactionId, referenceId, tabaPayResponse.NetworkId);
-        return await _paymentCosmosDB.PatchItemAsync(request, patches);
-    }
-
-    private async Task<EvolvePaymentRequest?> PatchTransactionStatusAsync(
-        RequestStage stage, RequestStatus status, string additionalInfo, EvolvePaymentRequest request)
-    {
-        var patches = EvolvePaymentRequestHelper.GetStatusPatchOperation(stage, status, additionalInfo);
-        return await _paymentCosmosDB.PatchItemAsync(request, patches);
-    }
+   "evolveId":"64ef5535-7bb7-45f3-a7ec-beaedec67c7b",
+   "paymentReference":"b8616eg-2c0g-1948-97au-e8d9i00a7ad8",
+   "sourceAccount":{
+      "accountNumber":"9010010000000001",
+      "name":{
+         "first":"Earnin",
+         "last":"Merchant"
+      },
+      "routingNumber":"084009593",
+      "accountType":"S"
+   },
+   "destinationAccount":{
+      "accountNumber":"900397187386253",
+      "name":{
+         "first":"Sarah",
+         "last":"Robinson"
+      },
+      "routingNumber":"101115315",
+      "accountType":"C"
+   },
+   "status":"FAILED",
+   "pmtHandler":"TabaPay",
+   "amount":"0.90",
+   "comments":"Limit denied (Monthly): Limit '9900013724 Monthly Limit RTP Send' exceeded.",
+   "success":false,
+   "valueDate":"2026-07-21T17:58:30.8223587Z",
+   "sourceCurrency":"840",
+   "destinationCurrency":"840",
+   "cifno":"EAA0617",
+   "documentType":"CreatePayment",
+   "additionalInfo":{
+      "PaymentReference":"b8616eg-2c0g-1948-97au-e8d9i00a7ad8",
+      "Status":"FAILED"
+   },
+   "ultimateDebtor":{
+      "name":"ultimate"
+   },
+   "clientId":"Bm0RU8eASGfSxLYJjsG73Q",
+   "merchantId":"1070"
 }
