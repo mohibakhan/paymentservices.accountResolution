@@ -1,187 +1,113 @@
-using Azure.Messaging.ServiceBus;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PaymentServices.RTPSend.Constants;
-using PaymentServices.RTPSend.Exceptions;
-using PaymentServices.RTPSend.Helpers;
-using PaymentServices.RTPSend.Interface.Adapters;
-using PaymentServices.RTPSend.Interface.Services;
-using PaymentServices.RTPSend.Models;
-using PaymentServices.RTPSend.Models.Domain;
-using PaymentServices.RTPSend.Services;
-using PaymentServices.RTPSend.Settings;
-using System.Text.Json;
+import os
+import json
+import uuid
 
-namespace PaymentServices.RTPSend.Functions;
+from locust import HttpUser, task, constant_throughput, events
 
-/// <summary>
-/// Drains the <c>rtpsend-tabapay-retry</c> subscription on the shared
-/// <c>payment-processing</c> topic (filtered to Subject =
-/// <see cref="PaymentRequestConstants.TabaPaySendRetrySubject"/>). Messages land
-/// here (with a backoff delay) when a TabaPay send fails transiently, so the call
-/// is retried later instead of redelivering the outcome message in an instant loop.
-///
-/// Each delivery re-loads the Cosmos doc, re-attempts the TabaPay send, and lets
-/// <see cref="TabaPaySendFlow"/> decide the disposition: complete on success,
-/// dead-letter on a non-retryable failure, or schedule the next backed-off retry
-/// until <c>MaxTabaPayRetries</c> is reached (then dead-letter).
-///
-/// Once the TabaPay outcome is FINAL — success here, or either terminal branch in
-/// TabaPaySendFlow — Transfer's tptch/status endpoint is called so it can update
-/// the source-debit ledger entry's status. The ledger pointer is read off the
-/// payment document (HandlePaymentOutcome persisted it there), since the retry
-/// message itself carries only the evolveId and attempt count.
-///
-/// MANUAL SETTLE, like <see cref="HandlePaymentOutcome"/>.
-/// </summary>
-public class HandleTabaPayRetry
-{
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
-    };
+# =============================================================================
+# PaymentServices RTPSend — full-pipeline load test (QA) — Locust
+#
+# Each request sends a UNIQUE paymentReference (CreatePayment dedupes on it via
+# Cosmos 409), so every request exercises the full async pipeline:
+#   CreatePayment -> ProcessPayment -> Gateway -> AccountResolution
+#   -> Transfer (ledger debit + limits + screening) -> RTPSend outcome -> TabaPay
+#
+# TPS model in Locust:
+#   Throughput = (number of users) x (tasks per second per user)
+#   constant_throughput(1) => each user fires 1 request/sec.
+#   So: set the USER COUNT (in the Azure Load Testing "Load" config) equal to
+#   your target TPS. e.g. 2 users => ~2 TPS, 20 users => ~20 TPS.
+#   Set spawn rate high enough to ramp users quickly (e.g. equal to user count).
+#
+# Config via environment variables (set in Azure Load Testing parameters):
+#   BASE_URL      e.g. https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net
+#   FUNCTION_KEY  the CreatePayment function key (x-functions-key)
+#   AMOUNT        per-payment amount (default 0.90)
+# =============================================================================
 
-    private readonly IPaymentCosmosDBAdapter _paymentCosmosDB;
-    private readonly ITabaPaySendService _tabaPay;
-    private readonly IServiceBusMessageService _serviceBus;
-    private readonly ITransferStatusClient _transferStatus;
-    private readonly RtpSendSettings _settings;
-    private readonly ILogger<HandleTabaPayRetry> _logger;
+BASE_URL = os.environ.get("BASE_URL", "")
+FUNCTION_KEY = os.environ.get("FUNCTION_KEY", "")
+AMOUNT = os.environ.get("AMOUNT", "0.90")
 
-    public HandleTabaPayRetry(
-        IPaymentCosmosDBAdapter paymentCosmosDB,
-        ITabaPaySendService tabaPay,
-        IServiceBusMessageService serviceBus,
-        ITransferStatusClient transferStatus,
-        IOptions<RtpSendSettings> settings,
-        ILogger<HandleTabaPayRetry> logger)
-    {
-        _paymentCosmosDB = paymentCosmosDB;
-        _tabaPay = tabaPay;
-        _serviceBus = serviceBus;
-        _transferStatus = transferStatus;
-        _settings = settings.Value;
-        _logger = logger;
-    }
+# CreatePayment requires these three auth headers; the next check after the
+# header presence test looks up apiUserConfig by (clientId, merchantId,
+# subscriptionKey), so they must be VALID values (same as a working request).
+CLIENT_ID = os.environ.get("CLIENT_ID", "")
+MERCHANT_ID = os.environ.get("MERCHANT_ID", "")
+SUBSCRIPTION_KEY = os.environ.get("SUBSCRIPTION_KEY", "")
 
-    [Function(nameof(HandleTabaPayRetry))]
-    public async Task Run(
-        [ServiceBusTrigger(
-            topicName: "payment-processing",
-            subscriptionName: "rtpsend-tabapay-retry",
-            Connection = "SERVICE_BUS_CONNSTRING")]
-        ServiceBusReceivedMessage message,
-        ServiceBusMessageActions messageActions,
-        CancellationToken cancellationToken)
-    {
-        TabaPayRetryMessage? retry;
-        try
-        {
-            retry = JsonSerializer.Deserialize<TabaPayRetryMessage>(message.Body.ToString(), _jsonOptions);
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex,
-                "Cannot deserialize TabaPay retry message {MessageId}; dead-lettering.", message.MessageId);
-            await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                "DeserializeError", ex.Message, message.MessageId, cancellationToken);
-            return;
-        }
 
-        if (retry is null || string.IsNullOrWhiteSpace(retry.EvolveId))
-        {
-            _logger.LogWarning(
-                "TabaPay retry message {MessageId} has no evolveId; dead-lettering.", message.MessageId);
-            await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                "MissingEvolveId", "Retry message had no evolveId", message.MessageId, cancellationToken);
-            return;
+class CreatePaymentUser(HttpUser):
+    # Each user attempts to keep a steady 1 request/sec. Target TPS = user count.
+    wait_time = constant_throughput(1)
+
+    # host can come from BASE_URL env var or the Azure Load Testing UI "host" field
+    host = BASE_URL or None
+
+    def on_start(self):
+        self.headers = {"Content-Type": "application/json"}
+        if FUNCTION_KEY:
+            self.headers["x-functions-key"] = FUNCTION_KEY
+        # Required by CreatePayment's header presence check + apiUserConfig lookup.
+        self.headers["x-client-id"] = CLIENT_ID
+        self.headers["x-merchant-id"] = MERCHANT_ID
+        self.headers["ocp-apim-subscription-key"] = SUBSCRIPTION_KEY
+
+    @task
+    def create_payment(self):
+        ref = str(uuid.uuid4())
+
+        body = {
+            "paymentReference": ref,
+            "sourceAccountId": None,
+            "sourceAccount": {
+                "accountNumber": "9010010000000001",
+                "name": {"company": None, "first": "Earnin", "last": "Merchant"},
+                "address": None,
+                "routingNumber": "084009593",
+                "accountType": "S",
+                "debtorBankMemberID": None,
+                "debtorIdOther": None,
+            },
+            "destinationAccountId": None,
+            "destinationAccount": {
+                "accountNumber": "900397187386253",
+                "name": {"company": None, "first": "Sarah", "last": "Robinson"},
+                "routingNumber": "101115315",
+                "accountType": "C",
+                "address": {
+                    "addressLines": ["123 First Street"],
+                    "city": "Omaha",
+                    "county": None,
+                    "countryISOCode": "840",
+                    "postalCode": "",
+                    "stateCode": "NE",
+                },
+                "phoneNumber": "4022221144",
+                "creditorAgentTCHMemberID": None,
+                "creditorIdOther": None,
+            },
+            "amount": AMOUNT,
+            "ultimateDebtor": {"name": "ultimate"},
+            "sourceCurrency": None,
+            "paymentCurrency": None,
+            "softDescriptor": None,
         }
 
-        _logger.LogInformation(
-            "TabaPay retry received. EvolveId={EvolveId} Attempt={Attempt} DeliveryCount={DeliveryCount}",
-            retry.EvolveId, retry.Attempt, message.DeliveryCount);
-
-        try
-        {
-            var payment = (await _paymentCosmosDB.FindAllItemsAsync(retry.EvolveId)).FirstOrDefault();
-            if (payment is null)
-            {
-                // The doc should exist (the original outcome found it). Dead-letter
-                // for investigation — the ledger has already been debited.
-                _logger.LogError(
-                    "No payment doc for evolveId {EvolveId} on TabaPay retry; dead-lettering.", retry.EvolveId);
-                await TabaPaySendFlow.DeadLetterAsync(messageActions, message, _logger,
-                    "PaymentDocNotFound", $"No RTPSend payment doc for evolveId {retry.EvolveId}",
-                    retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            // Idempotency / terminal guards — never re-send a settled payment.
-            if (payment.Status == RequestStatus.COMPLETED.ToString())
-            {
-                _logger.LogInformation(
-                    "Payment {EvolveId} already COMPLETED; completing retry message.", retry.EvolveId);
-                await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            if (payment.Status == RequestStatus.FAILED_TABAPAY.ToString()
-                || payment.Status == RequestStatus.FAILED_NSF.ToString())
-            {
-                _logger.LogInformation(
-                    "Payment {EvolveId} already terminal ({Status}); completing retry message.",
-                    retry.EvolveId, payment.Status);
-                await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-                return;
-            }
-
-            TabaPaySendResult sendResult;
-            try
-            {
-                sendResult = await _tabaPay.ProcessPayment(payment);
-            }
-            catch (TabaPayProcessingException ex)
-            {
-                // ProcessPayment patched the doc to FAILED / FAILED_TABAPAY before
-                // throwing; our copy predates that patch. Take the post-failure doc
-                // off the exception so the notification envelope and the
-                // tptch/status callback report the real state.
-                payment = ex.Document ?? payment;
-
-                // TabaPaySendFlow decides: non-retryable → notify + dead-letter;
-                // retries exhausted → notify + dead-letter; otherwise schedule the
-                // next backed-off retry. Both TERMINAL branches also report FAILED
-                // to Transfer's tptch/status (using the pointer on the payment doc).
-                await TabaPaySendFlow.HandleFailureAsync(
-                    _serviceBus, _transferStatus, _logger, _settings.MaxTabaPayRetries,
-                    payment, ex, retry.Attempt, message, messageActions, cancellationToken);
-                return;
-            }
-
-            _logger.LogInformation(
-                "Payment {EvolveId} COMPLETED via TabaPay on retry attempt {Attempt}.", retry.EvolveId, retry.Attempt);
-
-            // The TabaPay outcome is now final (success) — tell Transfer so it can
-            // mark the ledger entry COMPLETED. Best-effort; never throws.
-            await _transferStatus.ReportStatusAsync(
-                payment.EvolveId,
-                TransferStatusClient.CompletedStatus,
-                payment.LedgerEntryId,
-                payment.LedgerId,
-                cancellationToken);
-
-            await TabaPaySendFlow.PublishSuccessNotificationAsync(
-                _serviceBus, _logger, sendResult.Document, sendResult.Response);
-
-            await TabaPaySendFlow.CompleteAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Unexpected error on TabaPay retry for evolveId {EvolveId}; abandoning.", retry.EvolveId);
-            await TabaPaySendFlow.AbandonAsync(messageActions, message, _logger, retry.EvolveId, cancellationToken);
-        }
-    }
-}
+        with self.client.post(
+            "/api/CreatePayment",
+            data=json.dumps(body),
+            headers=self.headers,
+            name="CreatePayment",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code in (200, 202):
+                resp.success()
+            elif resp.status_code == 400:
+                resp.failure("400 validation — check the 3 auth headers are present")
+            elif resp.status_code == 403:
+                resp.failure("403 forbidden — client/merchant/subscription values don't match apiUserConfig")
+            elif resp.status_code == 409:
+                resp.failure("Unexpected dedupe (409) — paymentReference collision")
+            else:
+                resp.failure(f"HTTP {resp.status_code}: {resp.text[:200]}")
