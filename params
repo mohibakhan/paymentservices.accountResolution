@@ -60,3 +60,37 @@ public async Task<decimal> GetBalanceAsync(string ledgerId, DateTime? at = null)
 +    }
 +    return total;
  }
+
+
+
+
+public async Task<decimal> GetBalanceAsync(string ledgerId, DateTime? at = null)
+{
+    at ??= DateTime.UtcNow;
+
+    // Server-side aggregate, scoped to the ledger's logical partition. Cosmos
+    // serves this from the index without loading documents (~3 RU flat), where
+    // the previous client-side sum paged every entry back (~0.05 RU each, so
+    // ~630 RU at 12k entries — enough to throttle the partition under load).
+    var query = new QueryDefinition(
+            "SELECT VALUE SUM(c.amount) FROM c WHERE c.ledgerId = @ledgerId AND c.createdAt <= @at")
+        .WithParameter("@ledgerId", ledgerId)
+        .WithParameter("@at", at);
+
+    using var iterator = _entryContainer.GetItemQueryIterator<decimal?>(
+        query,
+        requestOptions: new QueryRequestOptions
+        {
+            PartitionKey = new PartitionKey(ledgerId)
+        });
+
+    decimal total = 0;
+    while (iterator.HasMoreResults)
+    {
+        // SUM over zero matching entries returns null, not 0 — a brand-new
+        // ledger would otherwise throw on the cast.
+        total += (await iterator.ReadNextAsync()).FirstOrDefault() ?? 0;
+    }
+
+    return total;
+}
