@@ -1,20 +1,28 @@
 {
-    "id": "a0c1b2d3-e4f5-6789-abcd-ef0123456789",
+    "id": "faae5beb-8806-44f0-bb45-1d46ad1294c0",
+    "ledgerId": "a0c1b2d3-e4f5-6789-abcd-ef0123456789",
     "accountNumber": "9900013724",
-    "currency": {
-        "name": "US Dollar",
-        "symbol": "USD",
-        "baseUnit": "Cent",
-        "decimals": 2
+    "amount": -0.1,
+    "gluId": "f89f83d4-50a4-4205-a290-c1cc0bc31742",
+    "trace": {
+        "evolveId": "35a72eb2-38f5-4e5f-a320-a6d41d47f832"
     },
-    "lastBalance": 5000,
-    "metadata": {},
-    "createdAt": "2026-06-01T04:34:44.7419673+00:00",
-    "updatedAt": "2026-07-24T00:43:20.7500046Z",
-    "ledgerType": "rtp-send-gl",
-    "_rid": "lgcOAPQCod4BAAAAAAAAAA==",
-    "_self": "dbs/lgcOAA==/colls/lgcOAPQCod4=/docs/lgcOAPQCod4BAAAAAAAAAA==/",
-    "_etag": "\"5f00261a-0000-0300-0000-6a62b5870000\"",
+    "metadata": {
+        "gluId": "f89f83d4-50a4-4205-a290-c1cc0bc31742",
+        "Account": "9900013724",
+        "evolveId": "35a72eb2-38f5-4e5f-a320-a6d41d47f832",
+        "correlationId": "68547f33-ef94-4de8-b217-bc6edd3cc18d",
+        "fintechId": "EAA0617",
+        "endpoint": "tptch.send",
+        "postedAt": "2026-07-24T00:43:20.7058086Z"
+    },
+    "createdAt": "2026-07-24T00:43:20.7058063Z",
+    "updatedAt": "2026-07-24T00:43:41.1366916Z",
+    "kind": "tptch.send",
+    "_rid": "lgcOAOvZLpMpBwAAAAAAAA==",
+    "_self": "dbs/lgcOAA==/colls/lgcOAOvZLpM=/docs/lgcOAOvZLpMpBwAAAAAAAA==/",
+    "_etag": "\"f001c4d3-0000-0300-0000-6a62b53d0000\"",
     "_attachments": "attachments/",
-    "_ts": 1784853895
+    "status": "Completed",
+    "_ts": 1784853821
 }
