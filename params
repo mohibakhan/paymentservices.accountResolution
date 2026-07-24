@@ -1,142 +1,62 @@
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PaymentServices.RTPSend.Settings;
+That's RU exhaustion, and the SDK already retried internally (9 times by default) before surfacing it — so it's sustained throttling, not a momentary spike.
 
-namespace PaymentServices.RTPSend.Services;
+Almost certainly ledgerEntries, and GetBalanceAsync is why. Every debit reads every entry ever written for that ledger and sums them client-side. 
+With ~12,000+ entries from your runs, one balance check materializes and transfers all of them — easily 100+ RU per call. At 30 TPS that's 3,000+ RU/s from balance reads alone, 
+and it grows with every payment you post. Confirm in the metrics blade: Total Requests split by container, filtered to 429.
 
-public interface ITransferStatusClient
-{
-    /// <summary>
-    /// Reports the final TabaPay outcome to Transfer's tptch/status endpoint,
-    /// which uses the ledger entry pointer to update that entry's status.
-    ///
-    /// "COMPLETED" on TabaPay success; "FAILED" only on a TERMINAL (non-retryable)
-    /// TabaPay failure — retryable failures are NOT reported, since the payment is
-    /// still being retried and hasn't finally failed.
-    /// </summary>
-    Task ReportStatusAsync(
-        string evolveId,
-        string status,
-        string? ledgerEntryId,
-        string? ledgerId,
-        CancellationToken cancellationToken = default);
-}
+The compounding problem: it's all one logical partition. ledgerEntries is partitioned by ledgerId, and your entire load test hits a single ledger. 
+A logical partition is served by one physical partition, capped around 10,000 RU/s — so provisioning more throughput past that point does nothing for this workload. You'd be buying RU that other partitions can use and yours can't.
 
-/// <summary>
-/// Typed HttpClient for Transfer's POST /api/tptch/status. Mirrors GatewayClient:
-/// config-driven URL with the Functions key embedded as ?code=.
-///
-/// NOTE — unlike GatewayClient, this client is BEST-EFFORT and never throws. It is
-/// called AFTER the payment has settled (TabaPay has run, the Service Bus message
-/// is about to be completed), so a failed status callback must not fail the
-/// function, trigger a redelivery, or re-process the payment.
-/// </summary>
-public sealed class TransferStatusClient : ITransferStatusClient
-{
-    public const string CompletedStatus = "COMPLETED";
-    public const string FailedStatus = "FAILED";
+This cuts RU substantially — no document materialization, no network transfer of 12,000 records — 
+but it still scans every entry. It buys you an order of magnitude, not immunity. 
+The durable fix is a periodic checkpoint entry (a snapshot row with the running total) so balance reads only sum entries since the last checkpoint.
 
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
-    };
+One caveat on that query. Your ledger doc stores createdAt as ...+00:00 while the entry stores ...Z. 
+Cosmos compares these lexicographically as strings, and those two formats don't sort consistently against each other. 
+If entries were ever written with mixed formats, the <= @at filter will silently drop some. 
+Worth running a quick SELECT DISTINCT sanity check on the format before trusting the result — and note the existing LINQ version has the identical exposure, so this isn't a regression, just newly visible.
 
-    private readonly HttpClient _httpClient;
-    private readonly RtpSendSettings _settings;
-    private readonly ILogger<TransferStatusClient> _logger;
+What the 429 does to your pipeline right now: a CosmosException isn't TabaPayProcessingException or HttpRequestException, 
+so in HandlePaymentOutcome it falls to the generic catch → abandon → redelivery. That redelivery re-reads the doc and re-patches, adding more Cosmos load, which causes more 429s. 
+Under sustained throttling that's a feedback loop, and messages eventually DLQ after maxDeliveryCount for what's really a capacity problem. Worth checking your DLQ for a cluster of these.
 
-    public TransferStatusClient(
-        HttpClient httpClient,
-        IOptions<RtpSendSettings> settings,
-        ILogger<TransferStatusClient> logger)
-    {
-        _httpClient = httpClient;
-        _settings = settings.Value;
-        _logger = logger;
-    }
+For getting a clean run in the meantime: point the load test at a fresh ledger with zero entries. 
+Your current one carries the accumulated cost of every prior run, so each test is slower and more expensive than the last — and that alone may put you back under the limit without touching provisioning.
 
-    public async Task ReportStatusAsync(
-        string evolveId,
-        string status,
-        string? ledgerEntryId,
-        string? ledgerId,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(_settings.TRANSFER_TPTCH_STATUS_URL))
-        {
-            _logger.LogWarning(
-                "TRANSFER_TPTCH_STATUS_URL is not configured; skipping status callback. " +
-                "EvolveId={EvolveId} Status={Status}", evolveId, status);
-            return;
-        }
-
-        // Transfer needs the entry pointer to do a point update on ledgerEntries.
-        if (string.IsNullOrWhiteSpace(ledgerEntryId) || string.IsNullOrWhiteSpace(ledgerId))
-        {
-            _logger.LogWarning(
-                "Missing ledger entry pointer; skipping tptch/status callback. " +
-                "EvolveId={EvolveId} Status={Status} LedgerEntryId={LedgerEntryId} LedgerId={LedgerId}",
-                evolveId, status, ledgerEntryId, ledgerId);
-            return;
-        }
-
-        var body = new TptchStatusRequest
-        {
-            EvolveId = evolveId,
-            Status = status,
-            LedgerEntryId = ledgerEntryId,
-            LedgerId = ledgerId
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, _settings.TRANSFER_TPTCH_STATUS_URL)
-        {
-            Content = JsonContent.Create(body, options: _jsonOptions)
-        };
-
-        _logger.LogInformation(
-            "Calling Transfer tptch/status. EvolveId={EvolveId} Status={Status}", evolveId, status);
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _httpClient.SendAsync(request, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Transfer tptch/status call failed (transport). EvolveId={EvolveId} Status={Status}",
-                evolveId, status);
-            return;
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError(
-                "Transfer tptch/status returned {StatusCode}. EvolveId={EvolveId} Status={Status} Body={Body}",
-                (int)response.StatusCode, evolveId, status, responseBody);
-            return;
-        }
-
-        _logger.LogInformation(
-            "Transfer tptch/status accepted. EvolveId={EvolveId} Status={Status}", evolveId, status);
-    }
-}
-
-/// <summary>Body posted to Transfer's /api/tptch/status.</summary>
-public sealed class TptchStatusRequest
-{
-    public string EvolveId { get; set; } = string.Empty;
-
-    /// <summary>"COMPLETED" or "FAILED".</summary>
-    public string Status { get; set; } = string.Empty;
-
-    /// <summary>The ledgerEntries document id.</summary>
-    public string? LedgerEntryId { get; set; }
-
-    /// <summary>The ledgerEntries partition key (the ledger's id).</summary>
-    public string? LedgerId { get; set; }
-}
+public async Task<decimal> GetBalanceAsync(string ledgerId, DateTime? at = null)
+ {
+     at ??= DateTime.UtcNow;
+-    var queryable = _entryContainer.GetItemLinqQueryable<LedgerEntry>();
+-    var matches = queryable
+-        .Where(e => e.LedgerId == ledgerId && e.CreatedAt <= at)
+-        .Select(e => e.Amount);
+-
+-    decimal total = 0;
+-    using var iterator = matches.ToFeedIterator();
+-    while (iterator.HasMoreResults)
+-    {
+-        foreach (var amount in await iterator.ReadNextAsync())
+-        {
+-            total += amount;
+-        }
+-    }
+-    return total;
++    var query = new QueryDefinition(
++            "SELECT VALUE SUM(c.amount) FROM c WHERE c.ledgerId = @ledgerId AND c.createdAt <= @at")
++        .WithParameter("@ledgerId", ledgerId)
++        .WithParameter("@at", at);
++
++    using var iterator = _entryContainer.GetItemQueryIterator<decimal?>(
++        query,
++        requestOptions: new QueryRequestOptions
++        {
++            PartitionKey = new PartitionKey(ledgerId)
++        });
++
++    decimal total = 0;
++    while (iterator.HasMoreResults)
++    {
++        total += (await iterator.ReadNextAsync()).FirstOrDefault() ?? 0;
++    }
++    return total;
+ }
