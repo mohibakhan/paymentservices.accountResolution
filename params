@@ -1,16 +1,10 @@
-Response status code does not indicate success: TooManyRequests (429); Substatus: 3200; ActivityId: 42a662f5-c38a-4552-a951-87a539c4b935; Reason: (
-Errors : [
-  "Request rate is large. More Request Units may be needed, so no changes were made. Please retry this request later. Learn more: http://aka.ms/cosmosdb-error-429"
-]
-); 
-
-11:18:12.342 PM	Request	Name: CreatePayment, Successful request: true, Response time: 4.3 s, URL: https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment
-11:18:12.342 PM	Trace	Severity level: Information, Message: Executing 'Functions.CreatePayment' (Reason='This function was programmatically called via the host APIs.', Id=f0353ac2-3e98-4fc2-bf82-8f452ecdd90e)
-11:18:12.343 PM	Internal	Name: Invoke, Type: InProc, Call status: true, Duration: 4.3 s
-11:18:12.343 PM	Trace	Severity level: Information, Message: Request starting HTTP/1.1 POST http://localhost:50418/api/CreatePayment - application/json 1149
-11:18:12.343 PM	Trace	Severity level: Information, Message: Executing endpoint 'CreatePayment'
-11:18:12.343 PM	Trace	Severity level: Information, Message: Request body: {"paymentReference":"fc40f0f1-9eaa-46e7-91b3-08205dddede7","sourceAccountId":null,"sourceAccount":{"accountNumber":"9010010000000001","name":{"company":null,"first":"Earnin","last":"Merchant"},"address":null,"routingNumber":"084009593","accountType":"S","debtorBankMemberID":null,"debtorIdOther":null},"destinationAccountId":null,"destinationAccount":{"accountNumber":"900397187386253","name":{"company":null,"first":"Sarah","last":"Robinson"},"routingNumber":"101115315","accountType":"C","address":{"addressLines":["123 First Street"],"city":"Omaha","county":null,"countryISOCode":"840","postalCode":"44040","stateCode":"NE"},"phoneNumber":"4022221144","creditorAgentTCHMemberID":null,"creditorIdOther":null},"amount":"0.10","ultimateDebtor":{"name":"ultimate"},"sourceCurrency":null,"paymentCurrency":null,"softDescriptor":{"name":"Earnin","email":"support@earnin.com","phone":null,"address":{"addressLines":["200 Main Street"],"city":"Palo Alto","county":"CUY","countryISOCode":"840","postalCode":"94301","stateCode":"CA"}},"remittanceInformation":"money"}
-11:18:16.685 PM	Exception	Call Stack: Microsoft.Azure.Cosmos.CosmosException:
+12:16:32.740 AM	Request	Name: CreatePayment, Successful request: true, Response time: 1.9 s, URL: https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment
+12:16:32.740 AM	Trace	Severity level: Information, Message: Executing 'Functions.CreatePayment' (Reason='This function was programmatically called via the host APIs.', Id=f908587f-5089-4d31-8ed4-82fe8cf3e20d)
+12:16:32.747 AM	Internal	Name: Invoke, Type: InProc, Call status: true, Duration: 1.9 s
+12:16:32.750 AM	Trace	Severity level: Information, Message: Request starting HTTP/1.1 POST http://localhost:49251/api/CreatePayment - application/json 1149
+12:16:32.750 AM	Trace	Severity level: Information, Message: Executing endpoint 'CreatePayment'
+12:16:32.751 AM	Trace	Severity level: Information, Message: Request body: {"paymentReference":"4b0e57a2-5edb-47ca-9ca1-c5004f7e9456","sourceAccountId":null,"sourceAccount":{"accountNumber":"9010010000000001","name":{"company":null,"first":"Earnin","last":"Merchant"},"address":null,"routingNumber":"084009593","accountType":"S","debtorBankMemberID":null,"debtorIdOther":null},"destinationAccountId":null,"destinationAccount":{"accountNumber":"900397187386253","name":{"company":null,"first":"Sarah","last":"Robinson"},"routingNumber":"101115315","accountType":"C","address":{"addressLines":["123 First Street"],"city":"Omaha","county":null,"countryISOCode":"840","postalCode":"44040","stateCode":"NE"},"phoneNumber":"4022221144","creditorAgentTCHMemberID":null,"creditorIdOther":null},"amount":"0.10","ultimateDebtor":{"name":"ultimate"},"sourceCurrency":null,"paymentCurrency":null,"softDescriptor":{"name":"Earnin","email":"support@earnin.com","phone":null,"address":{"addressLines":["200 Main Street"],"city":"Palo Alto","county":"CUY","countryISOCode":"840","postalCode":"94301","stateCode":"CA"}},"remittanceInformation":"money"}
+12:16:34.657 AM	Exception	Call Stack: Microsoft.Azure.Cosmos.CosmosException:
    at Microsoft.Azure.Cosmos.ClientContextCore+<RunWithDiagnosticsHelperAsync>d__43`1.MoveNext (Microsoft.Azure.Cosmos.Client, Version=3.60.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35)
    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
@@ -27,12 +21,12 @@ Errors : [
    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
    at System.Runtime.CompilerServices.TaskAwaiter`1.GetResult (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
    at PaymentServices.RTPSend.Functions.CreatePayment+<Run>d__11.MoveNext (PaymentServices.RTPSend, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null: /home/vsts/work/1/s/src/Functions/CreatePayment.cs:143)
-, Message: Response status code does not indicate success: TooManyRequests (429); Substatus: 3200; ActivityId: 42a662f5-c38a-4552-a951-87a539c4b935; Reason: (
+, Message: Response status code does not indicate success: TooManyRequests (429); Substatus: 3200; ActivityId: 67012aec-a48e-4630-a3fc-e2a79cb14910; Reason: (
 Errors : [
   "Request rate is large. More Request Units may be needed, so no changes were made. Please retry this request later. Learn more: http://aka.ms/cosmosdb-error-429"
 ]
 );
-11:18:16.685 PM	Trace	Severity level: Information, Message: Executing ObjectResult, writing value of type 'PaymentServices.RTPSend.Exceptions.UnexpectedProblem'.
-11:18:16.685 PM	Trace	Severity level: Information, Message: Executed endpoint 'CreatePayment'
-11:18:16.685 PM	Trace	Severity level: Information, Message: Request finished HTTP/1.1 POST https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment - 500 - application/json;+charset=utf-8 4341.8909ms
-11:18:16.690 PM	Trace	Severity level: Information, Message: Executed 'Functions.CreatePayment' (Succeeded, Id=f0353ac2-3e98-4fc2-bf82-8f452ecdd90e, Duration=4348ms)
+12:16:34.657 AM	Trace	Severity level: Information, Message: Executing ObjectResult, writing value of type 'PaymentServices.RTPSend.Exceptions.UnexpectedProblem'.
+12:16:34.657 AM	Trace	Severity level: Information, Message: Executed endpoint 'CreatePayment'
+12:16:34.657 AM	Trace	Severity level: Information, Message: Request finished HTTP/1.1 POST https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment - 500 - application/json;+charset=utf-8 1906.7440ms
+12:16:34.665 AM	Trace	Severity level: Information, Message: Executed 'Functions.CreatePayment' (Succeeded, Id=f908587f-5089-4d31-8ed4-82fe8cf3e20d, Duration=1924ms)
