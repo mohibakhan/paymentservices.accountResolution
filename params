@@ -1,96 +1,38 @@
-That's RU exhaustion, and the SDK already retried internally (9 times by default) before surfacing it — so it's sustained throttling, not a momentary spike.
+Response status code does not indicate success: TooManyRequests (429); Substatus: 3200; ActivityId: 42a662f5-c38a-4552-a951-87a539c4b935; Reason: (
+Errors : [
+  "Request rate is large. More Request Units may be needed, so no changes were made. Please retry this request later. Learn more: http://aka.ms/cosmosdb-error-429"
+]
+); 
 
-Almost certainly ledgerEntries, and GetBalanceAsync is why. Every debit reads every entry ever written for that ledger and sums them client-side. 
-With ~12,000+ entries from your runs, one balance check materializes and transfers all of them — easily 100+ RU per call. At 30 TPS that's 3,000+ RU/s from balance reads alone, 
-and it grows with every payment you post. Confirm in the metrics blade: Total Requests split by container, filtered to 429.
-
-The compounding problem: it's all one logical partition. ledgerEntries is partitioned by ledgerId, and your entire load test hits a single ledger. 
-A logical partition is served by one physical partition, capped around 10,000 RU/s — so provisioning more throughput past that point does nothing for this workload. You'd be buying RU that other partitions can use and yours can't.
-
-This cuts RU substantially — no document materialization, no network transfer of 12,000 records — 
-but it still scans every entry. It buys you an order of magnitude, not immunity. 
-The durable fix is a periodic checkpoint entry (a snapshot row with the running total) so balance reads only sum entries since the last checkpoint.
-
-One caveat on that query. Your ledger doc stores createdAt as ...+00:00 while the entry stores ...Z. 
-Cosmos compares these lexicographically as strings, and those two formats don't sort consistently against each other. 
-If entries were ever written with mixed formats, the <= @at filter will silently drop some. 
-Worth running a quick SELECT DISTINCT sanity check on the format before trusting the result — and note the existing LINQ version has the identical exposure, so this isn't a regression, just newly visible.
-
-What the 429 does to your pipeline right now: a CosmosException isn't TabaPayProcessingException or HttpRequestException, 
-so in HandlePaymentOutcome it falls to the generic catch → abandon → redelivery. That redelivery re-reads the doc and re-patches, adding more Cosmos load, which causes more 429s. 
-Under sustained throttling that's a feedback loop, and messages eventually DLQ after maxDeliveryCount for what's really a capacity problem. Worth checking your DLQ for a cluster of these.
-
-For getting a clean run in the meantime: point the load test at a fresh ledger with zero entries. 
-Your current one carries the accumulated cost of every prior run, so each test is slower and more expensive than the last — and that alone may put you back under the limit without touching provisioning.
-
-public async Task<decimal> GetBalanceAsync(string ledgerId, DateTime? at = null)
- {
-     at ??= DateTime.UtcNow;
--    var queryable = _entryContainer.GetItemLinqQueryable<LedgerEntry>();
--    var matches = queryable
--        .Where(e => e.LedgerId == ledgerId && e.CreatedAt <= at)
--        .Select(e => e.Amount);
--
--    decimal total = 0;
--    using var iterator = matches.ToFeedIterator();
--    while (iterator.HasMoreResults)
--    {
--        foreach (var amount in await iterator.ReadNextAsync())
--        {
--            total += amount;
--        }
--    }
--    return total;
-+    var query = new QueryDefinition(
-+            "SELECT VALUE SUM(c.amount) FROM c WHERE c.ledgerId = @ledgerId AND c.createdAt <= @at")
-+        .WithParameter("@ledgerId", ledgerId)
-+        .WithParameter("@at", at);
-+
-+    using var iterator = _entryContainer.GetItemQueryIterator<decimal?>(
-+        query,
-+        requestOptions: new QueryRequestOptions
-+        {
-+            PartitionKey = new PartitionKey(ledgerId)
-+        });
-+
-+    decimal total = 0;
-+    while (iterator.HasMoreResults)
-+    {
-+        total += (await iterator.ReadNextAsync()).FirstOrDefault() ?? 0;
-+    }
-+    return total;
- }
-
-
-
-
-public async Task<decimal> GetBalanceAsync(string ledgerId, DateTime? at = null)
-{
-    at ??= DateTime.UtcNow;
-
-    // Server-side aggregate, scoped to the ledger's logical partition. Cosmos
-    // serves this from the index without loading documents (~3 RU flat), where
-    // the previous client-side sum paged every entry back (~0.05 RU each, so
-    // ~630 RU at 12k entries — enough to throttle the partition under load).
-    var query = new QueryDefinition(
-            "SELECT VALUE SUM(c.amount) FROM c WHERE c.ledgerId = @ledgerId AND c.createdAt <= @at")
-        .WithParameter("@ledgerId", ledgerId)
-        .WithParameter("@at", at);
-
-    using var iterator = _entryContainer.GetItemQueryIterator<decimal?>(
-        query,
-        requestOptions: new QueryRequestOptions
-        {
-            PartitionKey = new PartitionKey(ledgerId)
-        });
-
-    decimal total = 0;
-    while (iterator.HasMoreResults)
-    {
-        // SUM over zero matching entries returns null, not 0 — a brand-new
-        // ledger would otherwise throw on the cast.
-        total += (await iterator.ReadNextAsync()).FirstOrDefault() ?? 0;
-    }
-
-    return total;
-}
+11:18:12.342 PM	Request	Name: CreatePayment, Successful request: true, Response time: 4.3 s, URL: https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment
+11:18:12.342 PM	Trace	Severity level: Information, Message: Executing 'Functions.CreatePayment' (Reason='This function was programmatically called via the host APIs.', Id=f0353ac2-3e98-4fc2-bf82-8f452ecdd90e)
+11:18:12.343 PM	Internal	Name: Invoke, Type: InProc, Call status: true, Duration: 4.3 s
+11:18:12.343 PM	Trace	Severity level: Information, Message: Request starting HTTP/1.1 POST http://localhost:50418/api/CreatePayment - application/json 1149
+11:18:12.343 PM	Trace	Severity level: Information, Message: Executing endpoint 'CreatePayment'
+11:18:12.343 PM	Trace	Severity level: Information, Message: Request body: {"paymentReference":"fc40f0f1-9eaa-46e7-91b3-08205dddede7","sourceAccountId":null,"sourceAccount":{"accountNumber":"9010010000000001","name":{"company":null,"first":"Earnin","last":"Merchant"},"address":null,"routingNumber":"084009593","accountType":"S","debtorBankMemberID":null,"debtorIdOther":null},"destinationAccountId":null,"destinationAccount":{"accountNumber":"900397187386253","name":{"company":null,"first":"Sarah","last":"Robinson"},"routingNumber":"101115315","accountType":"C","address":{"addressLines":["123 First Street"],"city":"Omaha","county":null,"countryISOCode":"840","postalCode":"44040","stateCode":"NE"},"phoneNumber":"4022221144","creditorAgentTCHMemberID":null,"creditorIdOther":null},"amount":"0.10","ultimateDebtor":{"name":"ultimate"},"sourceCurrency":null,"paymentCurrency":null,"softDescriptor":{"name":"Earnin","email":"support@earnin.com","phone":null,"address":{"addressLines":["200 Main Street"],"city":"Palo Alto","county":"CUY","countryISOCode":"840","postalCode":"94301","stateCode":"CA"}},"remittanceInformation":"money"}
+11:18:16.685 PM	Exception	Call Stack: Microsoft.Azure.Cosmos.CosmosException:
+   at Microsoft.Azure.Cosmos.ClientContextCore+<RunWithDiagnosticsHelperAsync>d__43`1.MoveNext (Microsoft.Azure.Cosmos.Client, Version=3.60.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35)
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter`1.GetResult (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at Microsoft.Azure.Cosmos.ClientContextCore+<OperationHelperWithRootTraceAsync>d__31`1.MoveNext (Microsoft.Azure.Cosmos.Client, Version=3.60.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35)
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter`1.GetResult (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at PaymentServices.RTPSend.Repositories.PaymentCosmosDBAdapter+<CreateItemAsync>d__4.MoveNext (PaymentServices.RTPSend, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null: /home/vsts/work/1/s/src/Repositories/PaymentCosmosDBAdapter.cs:52)
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at System.Runtime.CompilerServices.TaskAwaiter`1.GetResult (System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e)
+   at PaymentServices.RTPSend.Functions.CreatePayment+<Run>d__11.MoveNext (PaymentServices.RTPSend, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null: /home/vsts/work/1/s/src/Functions/CreatePayment.cs:143)
+, Message: Response status code does not indicate success: TooManyRequests (429); Substatus: 3200; ActivityId: 42a662f5-c38a-4552-a951-87a539c4b935; Reason: (
+Errors : [
+  "Request rate is large. More Request Units may be needed, so no changes were made. Please retry this request later. Learn more: http://aka.ms/cosmosdb-error-429"
+]
+);
+11:18:16.685 PM	Trace	Severity level: Information, Message: Executing ObjectResult, writing value of type 'PaymentServices.RTPSend.Exceptions.UnexpectedProblem'.
+11:18:16.685 PM	Trace	Severity level: Information, Message: Executed endpoint 'CreatePayment'
+11:18:16.685 PM	Trace	Severity level: Information, Message: Request finished HTTP/1.1 POST https://fa-pmtsvc-rtpsend-qa-centralus.azurewebsites.net/api/CreatePayment - 500 - application/json;+charset=utf-8 4341.8909ms
+11:18:16.690 PM	Trace	Severity level: Information, Message: Executed 'Functions.CreatePayment' (Succeeded, Id=f0353ac2-3e98-4fc2-bf82-8f452ecdd90e, Duration=4348ms)
