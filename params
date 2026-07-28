@@ -1,4 +1,11 @@
 traces
-| where message contains "TabaPay COMPLETED in"
-| extend ms = todouble(customDimensions.ElapsedMs)
-| summarize avg(ms), percentile(ms, 90), count()
+| where timestamp > ago(4h)
+| where message has "TabaPay"
+| project timestamp, message
+| order by timestamp desc
+| take 50
+
+dependencies
+| where timestamp > ago(4h)
+| where target has "tabapay"
+| summarize avg(duration), percentile(duration, 90), count() by name
