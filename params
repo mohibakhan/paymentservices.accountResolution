@@ -1,4 +1,5 @@
-    logger?.LogInformation(
-"CosmosClient retry config: MaxAttempts={Attempts} MaxWait={WaitSeconds}s",
-clientOptions.MaxRetryAttemptsOnRateLimitedRequests,
-clientOptions.MaxRetryWaitTimeOnRateLimitedRequests.TotalSeconds);
+traces
+| where timestamp > ago(15m)
+| where message contains "CosmosClient retry config"
+| project timestamp, message
+| order by timestamp desc
