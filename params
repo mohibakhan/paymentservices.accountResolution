@@ -1,5 +1,14 @@
-traces
-| where timestamp > ago(15m)
-| where message contains "CosmosClient retry config"
-| project timestamp, message
-| order by timestamp desc
+Load
+2875
+Total requests
+Duration
+1 min, 21 secs
+Response time
+740.00 ms
+90th percentile response time
+Error percentage
+0 %
+Aggregate requests which failed
+Throughput
+44.23 /s
+Request rate
