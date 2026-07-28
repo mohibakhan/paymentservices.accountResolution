@@ -1,14 +1,4 @@
-Load
-2875
-Total requests
-Duration
-1 min, 21 secs
-Response time
-740.00 ms
-90th percentile response time
-Error percentage
-0 %
-Aggregate requests which failed
-Throughput
-44.23 /s
-Request rate
+traces
+| where message contains "TabaPay COMPLETED in"
+| extend ms = todouble(customDimensions.ElapsedMs)
+| summarize avg(ms), percentile(ms, 90), count()
