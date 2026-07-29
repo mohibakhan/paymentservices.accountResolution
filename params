@@ -1,85 +1,33 @@
-using FluentValidation;
-using PaymentServices.RTPSend.Models.Domain;
-
 namespace PaymentServices.RTPSend.Validators;
 
-public class BasicPaymentRequestValidator : AbstractValidator<BasicPaymentRequest>
+internal static class PhoneNumberValidator
 {
-    public BasicPaymentRequestValidator()
+    /// <summary>
+    /// Strips common formatting and a leading US country code, returning the
+    /// bare 10-digit NANP number. Returns null when the input can't be
+    /// normalized to exactly 10 digits.
+    /// </summary>
+    public static string? Normalize(string? phone)
     {
-        // Payment Reference
-        RuleFor(x => x.PaymentReference)
-            .Cascade(CascadeMode.Stop)
-            .NotNull().WithMessage("PaymentReference cannot be null")
-            .NotEmpty().WithMessage("PaymentReference cannot be empty");
+        if (string.IsNullOrWhiteSpace(phone))
+            return null;
 
-        // Amount
-        RuleFor(x => x.Amount)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .MaximumLength(18)
-            .Custom((x, context) =>
-            {
-                if (!decimal.TryParse(x, System.Globalization.NumberStyles.Number,
-                                      System.Globalization.CultureInfo.InvariantCulture, out var value)
-                    || value <= 0)
-                {
-                    context.AddFailure($"{x} is not a valid amount; must be a positive number");
-                }
-            });
+        Span<char> digits = stackalloc char[16];
+        var count = 0;
 
-        // Source Account — required if SourceAccountId not supplied
-        RuleFor(m => m.SourceAccount)
-            .NotNull().SetValidator(new SourceAccountValidator())
-            .When(m => string.IsNullOrWhiteSpace(m.SourceAccountId))
-            .WithMessage("SourceAccount or SourceAccountId is required");
-
-        // Destination Account — required if DestinationAccountId not supplied
-        RuleFor(m => m.DestinationAccount)
-            .NotNull().SetValidator(new DestinationAccountValidator())
-            .When(m => string.IsNullOrWhiteSpace(m.DestinationAccountId))
-            .WithMessage("DestinationAccount or DestinationAccountId is required");
-
-        // Remittance Information (optional) — must be ≤140 chars per ISO 20022 RmtInf
-        RuleFor(m => m.RemittanceInformation)
-            .MaximumLength(140)
-            .WithMessage("RemittanceInformation must be 140 characters or less")
-            .When(m => !string.IsNullOrWhiteSpace(m.RemittanceInformation));
-
-        // SoftDescriptor block (entire block is optional per TabaPay)
-        When(s => s.SoftDescriptor != null, () =>
+        foreach (var c in phone)
         {
-            RuleFor(s => s.SoftDescriptor!.Name)
-                .Cascade(CascadeMode.Stop)
-                .NotNull()
-                .NotEmpty()
-                .WithMessage("Soft Descriptor 'Name' is required when SoftDescriptor is supplied");
+            if (!char.IsDigit(c)) continue;
+            if (count == digits.Length) return null;   // absurdly long — reject
+            digits[count++] = c;
+        }
 
-            // Address is REQUIRED when SoftDescriptor is supplied (TabaPay: address required).
-            RuleFor(s => s.SoftDescriptor!.Address)
-                .NotNull()
-                .WithMessage("Soft Descriptor 'Address' is required when SoftDescriptor is supplied");
+        // Tolerate a leading US country code: 1 + 10 digits.
+        if (count == 11 && digits[0] == '1')
+            return new string(digits[1..11]);
 
-            When(s => s.SoftDescriptor!.Address != null, () =>
-            {
-                RuleFor(s => s.SoftDescriptor!.Address!)
-                    .SetValidator(new SoftDescriptorAddressValidator());
-            });
-
-            // Phone block is optional, but if supplied the number must be present
-            // AND well-formed — an unusable support number is worse than none,
-            // and TabaPay will reject it after we've already debited the ledger.
-            When(s => s.SoftDescriptor!.Phone != null, () =>
-            {
-                RuleFor(s => s.SoftDescriptor!.Phone!.Number)
-                    .Cascade(CascadeMode.Stop)
-                    .NotNull()
-                    .NotEmpty()
-                    .WithMessage("Soft Descriptor 'Phone.Number' is required when Phone is supplied")
-                    .Must(PhoneNumberValidator.IsValid)
-                    .WithMessage("Soft Descriptor 'Phone.Number' must be a valid 10-digit US phone number");
-            });
-        });
+        return count == 10 ? new string(digits[..10]) : null;
     }
+
+    public static bool IsValid(string? phone) => Normalize(phone) is not null;
 }
