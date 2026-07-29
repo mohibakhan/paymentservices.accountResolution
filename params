@@ -1,162 +1,74 @@
-using FluentValidation;
-using AccountTypeEnum = PaymentServices.RTPSend.Models.Domain.AccountType;
-using PaymentServices.RTPSend.Models.Domain;
-
 namespace PaymentServices.RTPSend.Validators;
 
-public class DestinationAccountValidator : AbstractValidator<DestinationAccount>
+internal static class RoutingNumberValidator
 {
-    public DestinationAccountValidator()
+    /// <summary>
+    /// Normalizes a routing number to its canonical 9-digit form. An 8-digit
+    /// value is treated as a 9-digit number whose leading zero was stripped
+    /// upstream (numeric field, spreadsheet, integer parse), so it is left-padded.
+    /// Returns null when the input can't be normalized.
+    /// </summary>
+    public static string? Normalize(string? routingNumber)
     {
-        RuleFor(x => x.AccountNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid account number");
-            });
+        if (string.IsNullOrWhiteSpace(routingNumber))
+            return null;
 
-        RuleFor(x => x.Name)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .WithMessage("Destination Account name is required")
-            .SetValidator(new AccountNameValidator());
+        var trimmed = routingNumber.Trim();
 
-        RuleFor(x => x.RoutingNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid Routing number");
-            });
+        if (trimmed.Length is < 8 or > 9)
+            return null;
 
-        RuleFor(x => x.AccountType)
-            .NotEmpty()
-            .NotNull()
-            .IsEnumName(typeof(AccountTypeEnum))
-            .WithMessage("Invalid Destination Account type is required and can be one of the following values: S, C, A, B, L");
-
-        // TabaPay requires the destination address (line1/city/state/zip).
-        // Required (not null) + field-level validation via AddressValidator.
-        RuleFor(x => x.Address)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .WithMessage("Destination Account address is required")
-            .SetValidator(new AddressValidator()!);
-    }
-}
-
-
-using FluentValidation;
-using AccountTypeEnum = PaymentServices.RTPSend.Models.Domain.AccountType;
-using PaymentServices.RTPSend.Models.Domain;
-
-namespace PaymentServices.RTPSend.Validators;
-
-public class SourceAccountValidator : AbstractValidator<SourceAccount>
-{
-    public SourceAccountValidator()
-    {
-        RuleFor(x => x.AccountNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid account number");
-            });
-
-        RuleFor(x => x.Name)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .WithMessage("Source Account name is required")
-            .SetValidator(new AccountNameValidator());
-
-        RuleFor(x => x.RoutingNumber)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                if (!ulong.TryParse(x, out _))
-                    context.AddFailure($"{x} is not a valid Routing number");
-            });
-
-        RuleFor(x => x.AccountType)
-            .NotEmpty()
-            .NotNull()
-            .IsEnumName(typeof(AccountTypeEnum))
-            .WithMessage("Invalid Source AccountType is required and can be one of the following values: S, C, A, B, L");
-    }
-}
-
-
-Sample request
-{
-    "paymentReference": "b1041eg-2c0g-1948-97au-e8d9i00a7ad8",
-    "amount": "0.1",
-    "sourceAccountId": null,
-    "sourceAccount": {
-        "accountNumber": "9010010000000001",
-        "name": {
-            "company": null,
-            "first": "Earnin",
-            "last": "Merchant"
-        },
-        "address": null,
-        "routingNumber": "084009593",
-        "accountType": "S",
-        "debtorBankMemberID": null,
-        "debtorIdOther": null
-    },
-    "destinationAccountId": null,
-    "destinationAccount": {
-        "accountNumber": "900397187386253",
-        "name": {
-            "company": null,
-            "first": "Sarah",
-            "last": "Robinson"
-        },
-        "routingNumber": "101115315",
-        "accountType": "C",
-        "address": {
-            "addressLines": [
-                "123 First Street"
-            ],
-            "city": "Omaha",
-            "county": null,
-            "countryISOCode": "840",
-            "postalCode": "34566",
-            "stateCode": "NE"
-        },
-        "phoneNumber": "4022221144",
-        "creditorAgentTCHMemberID": null,
-        "creditorIdOther": null
-    },
-    "ultimateDebtor": {
-        "name": "ultimate"
-    },
-    "sourceCurrency": null,
-    "paymentCurrency": null,
-    "softDescriptor": {
-        "name": "Earnin",
-        "email": "support@earnin.com",
-        "phone": null,
-        "address": {
-            "addressLines": [
-                "200 Main Street"
-            ],
-            "city": "Palo Alto",
-            "county": "CUY",
-            "countryISOCode": "840",
-            "postalCode": "44040",
-            "stateCode": "CA"
+        foreach (var c in trimmed)
+        {
+            if (!char.IsDigit(c))
+                return null;
         }
-    },
-    "remittanceInformation": "money"
+
+        return trimmed.Length == 8 ? "0" + trimmed : trimmed;
+    }
+
+    /// <summary>
+    /// ABA routing transit number checksum, applied to the normalized 9-digit form:
+    ///   3(d1+d4+d7) + 7(d2+d5+d8) + 1(d3+d6+d9) ≡ 0 (mod 10)
+    /// Catches transposed and mistyped digits that a length check alone misses.
+    /// </summary>
+    public static bool HasValidChecksum(string? routingNumber)
+    {
+        var normalized = Normalize(routingNumber);
+        if (normalized is null)
+            return false;
+
+        var d = new int[9];
+        for (var i = 0; i < 9; i++)
+            d[i] = normalized[i] - '0';
+
+        var sum = 3 * (d[0] + d[3] + d[6])
+                + 7 * (d[1] + d[4] + d[7])
+                + 1 * (d[2] + d[5] + d[8]);
+
+        return sum % 10 == 0;
+    }
 }
+
+
+
+
+
+
+RuleFor(x => x.RoutingNumber)
+    .Cascade(CascadeMode.Stop)
+    .NotNull()
+    .NotEmpty()
+    .Matches(@"^\d{8,9}$")
+    .WithMessage("Routing number must be 8 or 9 digits")
+    .Must(RoutingNumberValidator.HasValidChecksum)
+    .WithMessage("Routing number failed the ABA checksum");
+
+
+
+
+
+-                AccountNumber = src.AccountNumber.Trim(),
+-                RoutingNumber = src.RoutingNumber.Trim(),
++                AccountNumber = src.AccountNumber.Trim(),
++                RoutingNumber = RoutingNumberValidator.Normalize(src.RoutingNumber) ?? src.RoutingNumber.Trim(),
