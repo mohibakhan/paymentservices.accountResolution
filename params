@@ -1,74 +1,85 @@
+using FluentValidation;
+using PaymentServices.RTPSend.Models.Domain;
+
 namespace PaymentServices.RTPSend.Validators;
 
-internal static class RoutingNumberValidator
+public class BasicPaymentRequestValidator : AbstractValidator<BasicPaymentRequest>
 {
-    /// <summary>
-    /// Normalizes a routing number to its canonical 9-digit form. An 8-digit
-    /// value is treated as a 9-digit number whose leading zero was stripped
-    /// upstream (numeric field, spreadsheet, integer parse), so it is left-padded.
-    /// Returns null when the input can't be normalized.
-    /// </summary>
-    public static string? Normalize(string? routingNumber)
+    public BasicPaymentRequestValidator()
     {
-        if (string.IsNullOrWhiteSpace(routingNumber))
-            return null;
+        // Payment Reference
+        RuleFor(x => x.PaymentReference)
+            .Cascade(CascadeMode.Stop)
+            .NotNull().WithMessage("PaymentReference cannot be null")
+            .NotEmpty().WithMessage("PaymentReference cannot be empty");
 
-        var trimmed = routingNumber.Trim();
+        // Amount
+        RuleFor(x => x.Amount)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
+            .NotEmpty()
+            .MaximumLength(18)
+            .Custom((x, context) =>
+            {
+                if (!decimal.TryParse(x, System.Globalization.NumberStyles.Number,
+                                      System.Globalization.CultureInfo.InvariantCulture, out var value)
+                    || value <= 0)
+                {
+                    context.AddFailure($"{x} is not a valid amount; must be a positive number");
+                }
+            });
 
-        if (trimmed.Length is < 8 or > 9)
-            return null;
+        // Source Account — required if SourceAccountId not supplied
+        RuleFor(m => m.SourceAccount)
+            .NotNull().SetValidator(new SourceAccountValidator())
+            .When(m => string.IsNullOrWhiteSpace(m.SourceAccountId))
+            .WithMessage("SourceAccount or SourceAccountId is required");
 
-        foreach (var c in trimmed)
+        // Destination Account — required if DestinationAccountId not supplied
+        RuleFor(m => m.DestinationAccount)
+            .NotNull().SetValidator(new DestinationAccountValidator())
+            .When(m => string.IsNullOrWhiteSpace(m.DestinationAccountId))
+            .WithMessage("DestinationAccount or DestinationAccountId is required");
+
+        // Remittance Information (optional) — must be ≤140 chars per ISO 20022 RmtInf
+        RuleFor(m => m.RemittanceInformation)
+            .MaximumLength(140)
+            .WithMessage("RemittanceInformation must be 140 characters or less")
+            .When(m => !string.IsNullOrWhiteSpace(m.RemittanceInformation));
+
+        // SoftDescriptor block (entire block is optional per TabaPay)
+        When(s => s.SoftDescriptor != null, () =>
         {
-            if (!char.IsDigit(c))
-                return null;
-        }
+            RuleFor(s => s.SoftDescriptor!.Name)
+                .Cascade(CascadeMode.Stop)
+                .NotNull()
+                .NotEmpty()
+                .WithMessage("Soft Descriptor 'Name' is required when SoftDescriptor is supplied");
 
-        return trimmed.Length == 8 ? "0" + trimmed : trimmed;
-    }
+            // Address is REQUIRED when SoftDescriptor is supplied (TabaPay: address required).
+            RuleFor(s => s.SoftDescriptor!.Address)
+                .NotNull()
+                .WithMessage("Soft Descriptor 'Address' is required when SoftDescriptor is supplied");
 
-    /// <summary>
-    /// ABA routing transit number checksum, applied to the normalized 9-digit form:
-    ///   3(d1+d4+d7) + 7(d2+d5+d8) + 1(d3+d6+d9) ≡ 0 (mod 10)
-    /// Catches transposed and mistyped digits that a length check alone misses.
-    /// </summary>
-    public static bool HasValidChecksum(string? routingNumber)
-    {
-        var normalized = Normalize(routingNumber);
-        if (normalized is null)
-            return false;
+            When(s => s.SoftDescriptor!.Address != null, () =>
+            {
+                RuleFor(s => s.SoftDescriptor!.Address!)
+                    .SetValidator(new SoftDescriptorAddressValidator());
+            });
 
-        var d = new int[9];
-        for (var i = 0; i < 9; i++)
-            d[i] = normalized[i] - '0';
-
-        var sum = 3 * (d[0] + d[3] + d[6])
-                + 7 * (d[1] + d[4] + d[7])
-                + 1 * (d[2] + d[5] + d[8]);
-
-        return sum % 10 == 0;
+            // Phone block is optional, but if supplied the number must be present
+            // AND well-formed — an unusable support number is worse than none,
+            // and TabaPay will reject it after we've already debited the ledger.
+            When(s => s.SoftDescriptor!.Phone != null, () =>
+            {
+                RuleFor(s => s.SoftDescriptor!.Phone!.Number)
+                    .Cascade(CascadeMode.Stop)
+                    .NotNull()
+                    .NotEmpty()
+                    .WithMessage("Soft Descriptor 'Phone.Number' is required when Phone is supplied")
+                    .Must(PhoneNumberValidator.IsValid)
+                    .WithMessage("Soft Descriptor 'Phone.Number' must be a valid 10-digit US phone number");
+            });
+        });
     }
 }
-
-
-
-
-
-
-RuleFor(x => x.RoutingNumber)
-    .Cascade(CascadeMode.Stop)
-    .NotNull()
-    .NotEmpty()
-    .Matches(@"^\d{8,9}$")
-    .WithMessage("Routing number must be 8 or 9 digits")
-    .Must(RoutingNumberValidator.HasValidChecksum)
-    .WithMessage("Routing number failed the ABA checksum");
-
-
-
-
-
--                AccountNumber = src.AccountNumber.Trim(),
--                RoutingNumber = src.RoutingNumber.Trim(),
-+                AccountNumber = src.AccountNumber.Trim(),
-+                RoutingNumber = RoutingNumberValidator.Normalize(src.RoutingNumber) ?? src.RoutingNumber.Trim(),
