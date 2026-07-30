@@ -1,33 +1,21 @@
-limits
-6.40 M
-tchSendTransactions
-5.32 M
-tchSendIdempotency
-789.26 k
-keywords
-361.85 k
-accounts
-355.51 k
-remoteAccounts
-312.50 k
-
-
-ledgerEntries
-3.71 M
-ledgers
-1.73 M
-batches
-959.11
-gltrnaddlogs
-29.42
-
-
-
-paymentRequests
-12.77 M
-paymentIdempotency
-800.47 k
-apiUserConfig
-349.14 k
-partnerLedger
-309.06 k
+Database	Container	Min cost (Monthly)	Max cost (Monthly)
+ledgers	gltrnaddlogs	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+ledgers	ledgerEntries	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+ledgers	ledgers	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+ledgers	batches	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	platforms	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	keywords	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	customers	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	remoteAccounts	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	webhookLogs	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	watermarks	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	accounts	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	tchSendTransactions	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	limits	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+tptch	tchSendIdempotency	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+payments	apiUserConfig	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+payments	paymentIdempotency	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+payments	wirePayments	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+payments	partnerLedger	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+payments	paymentRequests	$43.80 ($1.44 per day)	$438.00 ($14.40 per day)
+ 
