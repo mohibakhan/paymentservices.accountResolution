@@ -1,33 +1,9 @@
-namespace PaymentServices.RTPSend.Validators;
+SELECT c.status, COUNT(1) AS cnt FROM c
+WHERE c.createdTimeStamp >= "..." AND c.createdTimeStamp <= "..."
+GROUP BY c.status
 
-internal static class PhoneNumberValidator
-{
-    /// <summary>
-    /// Strips common formatting and a leading US country code, returning the
-    /// bare 10-digit NANP number. Returns null when the input can't be
-    /// normalized to exactly 10 digits.
-    /// </summary>
-    public static string? Normalize(string? phone)
-    {
-        if (string.IsNullOrWhiteSpace(phone))
-            return null;
+SELECT VALUE SUM(c.amount) FROM c
+WHERE c.ledgerId = "a0c1b2d3-e4f5-6789-abcd-ef0123456789"
 
-        Span<char> digits = stackalloc char[16];
-        var count = 0;
-
-        foreach (var c in phone)
-        {
-            if (!char.IsDigit(c)) continue;
-            if (count == digits.Length) return null;   // absurdly long — reject
-            digits[count++] = c;
-        }
-
-        // Tolerate a leading US country code: 1 + 10 digits.
-        if (count == 11 && digits[0] == '1')
-            return new string(digits[1..11]);
-
-        return count == 10 ? new string(digits[..10]) : null;
-    }
-
-    public static bool IsValid(string? phone) => Normalize(phone) is not null;
-}
+The response-time curve is the soak result. Starts at ~1.35s, drops through ~0.5s by 10:08, settles around 0.25–0.3s by 10:12 and stays flat for the remaining 24 minutes. 
+No upward drift as 53,848 documents accumulated. That's the pass condition — a soak is looking for degradation over time, and there isn't any.
