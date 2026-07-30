@@ -1,68 +1,33 @@
-{
-        "id": "9900013724-send-weekly",
-        "description": "9900013724 Weekly Limit RTP Send",
-        "partitionKey": "9900013724",
-        "limitType": "Weekly",
-        "category": "Send",
-        "amountLimit": 1000000,
-        "currency": "USD",
-        "lastUpdated": "2026-07-30T02:36:50.2361336Z",
-        "currentCycleTotal": 0,
-        "currentCycleBegan": "2026-07-27T00:00:00Z",
-        "_rid": "QgghAJJqDKkHAAAAAAAAAA==",
-        "_self": "dbs/QgghAA==/colls/QgghAJJqDKk=/docs/QgghAJJqDKkHAAAAAAAAAA==/",
-        "_etag": "\"15010ca0-0000-0300-0000-6a6acc690000\"",
-        "_attachments": "attachments/",
-        "_ts": 1785384041
-    },
-    {
-        "id": "9900013724-send-monthly",
-        "description": "9900013724 Monthly Limit RTP Send",
-        "partitionKey": "9900013724",
-        "limitType": "Monthly",
-        "category": "Send",
-        "amountLimit": 500000,
-        "currency": "USD",
-        "lastUpdated": "2026-07-30T02:36:51.6394475Z",
-        "currentCycleTotal": 0,
-        "currentCycleBegan": "2026-07-01T00:00:00",
-        "_rid": "QgghAJJqDKkoAAAAAAAAAA==",
-        "_self": "dbs/QgghAA==/colls/QgghAJJqDKk=/docs/QgghAJJqDKkoAAAAAAAAAA==/",
-        "_etag": "\"1501139f-0000-0300-0000-6a6acc5d0000\"",
-        "_attachments": "attachments/",
-        "_ts": 1785384029
-    },
-    {
-        "id": "9900013724-send-daily",
-        "description": "9900013724 Daily Limit RTP Send",
-        "partitionKey": "9900013724",
-        "limitType": "Daily",
-        "category": "Send",
-        "amountLimit": 100000,
-        "currency": "USD",
-        "lastUpdated": "2026-07-30T02:36:51.5797337Z",
-        "currentCycleTotal": 0,
-        "currentCycleBegan": "2026-07-30T00:00:00Z",
-        "_rid": "QgghAJJqDKkJAAAAAAAAAA==",
-        "_self": "dbs/QgghAA==/colls/QgghAJJqDKk=/docs/QgghAJJqDKkJAAAAAAAAAA==/",
-        "_etag": "\"1501ac9d-0000-0300-0000-6a6acc500000\"",
-        "_attachments": "attachments/",
-        "_ts": 1785384016
-    },
-    {
-        "id": "9900013724-send-peritem",
-        "description": "9900013724 Item Limit RTP Send",
-        "partitionKey": "9900013724",
-        "limitType": "PerItem",
-        "category": "Send",
-        "amountLimit": 100,
-        "currency": "USD",
-        "lastUpdated": "2026-07-30T02:36:51.5425388Z",
-        "currentCycleTotal": 0,
-        "currentCycleBegan": "2026-07-23T00:00:00Z",
-        "_rid": "QgghAJJqDKkIAAAAAAAAAA==",
-        "_self": "dbs/QgghAA==/colls/QgghAJJqDKk=/docs/QgghAJJqDKkIAAAAAAAAAA==/",
-        "_etag": "\"1501459b-0000-0300-0000-6a6acc360000\"",
-        "_attachments": "attachments/",
-        "_ts": 1785383990
-    }
+limits
+6.40 M
+tchSendTransactions
+5.32 M
+tchSendIdempotency
+789.26 k
+keywords
+361.85 k
+accounts
+355.51 k
+remoteAccounts
+312.50 k
+
+
+ledgerEntries
+3.71 M
+ledgers
+1.73 M
+batches
+959.11
+gltrnaddlogs
+29.42
+
+
+
+paymentRequests
+12.77 M
+paymentIdempotency
+800.47 k
+apiUserConfig
+349.14 k
+partnerLedger
+309.06 k
