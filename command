@@ -386,3 +386,237 @@
   "processUptime": 248269,
   "functionAppContentEditingState": "Unknown"
 }
+2026-08-07T03:58:15.253 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 360520,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:15.437 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 360704,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:28.949 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 374216,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:28.968 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 374235,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:46.292 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 391559,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:46.450 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 391717,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T03:58:46.494 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 391760,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:00:00.003 [Information] Executing 'Functions.RetryFailedPayments' (Reason='Timer fired at 2026-08-07T04:00:00.0005575+00:00', Id=057b7440-fb70-448a-880f-3f2fff2b615e)
+2026-08-07T04:00:00.003 [Information] Trigger Details: ScheduleStatus: {"Last":"2026-08-07T03:55:00.0041579+00:00","Next":"2026-08-07T04:00:00+00:00","LastUpdated":"2026-08-07T03:55:00.0041579+00:00"}
+2026-08-07T04:00:00.009 [Information] RetryFailedPayments tick at 08/07/2026 04:00:00. Next: 08/07/2026 04:00:00
+2026-08-07T04:00:10.056 [Information] DLQ empty — no payments to retry.
+2026-08-07T04:00:10.064 [Information] Executed 'Functions.RetryFailedPayments' (Succeeded, Id=057b7440-fb70-448a-880f-3f2fff2b615e, Duration=10064ms)
+2026-08-07T04:03:45.147 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 690414,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:03:45.272 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 690539,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:04:59.989 [Information] Executing 'Functions.RetryFailedPayments' (Reason='Timer fired at 2026-08-07T04:04:59.9897253+00:00', Id=fa2c5e69-74bc-47e1-8f6c-68bb15cb3734)
+2026-08-07T04:04:59.990 [Information] Trigger Details: ScheduleStatus: {"Last":"2026-08-07T04:00:00.0002647+00:00","Next":"2026-08-07T04:05:00+00:00","LastUpdated":"2026-08-07T04:00:00.0002647+00:00"}
+2026-08-07T04:04:59.995 [Information] RetryFailedPayments tick at 08/07/2026 04:04:59. Next: 08/07/2026 04:05:00
+2026-08-07T04:05:10.068 [Information] DLQ empty — no payments to retry.
+2026-08-07T04:05:10.071 [Information] Executed 'Functions.RetryFailedPayments' (Succeeded, Id=fa2c5e69-74bc-47e1-8f6c-68bb15cb3734, Duration=10081ms)
+2026-08-07T04:05:16.428 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 781695,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:05:16.534 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 781801,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:05:19.602 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 784869,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T04:10:00.003 [Information] Executing 'Functions.RetryFailedPayments' (Reason='Timer fired at 2026-08-07T04:10:00.0032648+00:00', Id=b0533b52-a1b7-4a05-ad13-f174d6f7ca35)
+2026-08-07T04:10:00.003 [Information] Trigger Details: ScheduleStatus: {"Last":"2026-08-07T04:05:00+00:00","Next":"2026-08-07T04:10:00+00:00","LastUpdated":"2026-08-07T04:05:00+00:00"}
+2026-08-07T04:10:00.005 [Information] RetryFailedPayments tick at 08/07/2026 04:10:00. Next: 08/07/2026 04:10:00
+2026-08-07T04:10:10.062 [Information] DLQ empty — no payments to retry.
+2026-08-07T04:10:10.067 [Information] Executed 'Functions.RetryFailedPayments' (Succeeded, Id=b0533b52-a1b7-4a05-ad13-f174d6f7ca35, Duration=10064ms)
+2026-08-07T04:15:00.003 [Information] Executing 'Functions.RetryFailedPayments' (Reason='Timer fired at 2026-08-07T04:15:00.0027333+00:00', Id=95b51bc3-750b-43a0-8b27-c10dc056c0b3)
+2026-08-07T04:15:00.003 [Information] Trigger Details: ScheduleStatus: {"Last":"2026-08-07T04:10:00.0031766+00:00","Next":"2026-08-07T04:15:00+00:00","LastUpdated":"2026-08-07T04:10:00.0031766+00:00"}
+2026-08-07T04:15:00.005 [Information] RetryFailedPayments tick at 08/07/2026 04:15:00. Next: 08/07/2026 04:15:00
+2026-08-07T04:15:10.068 [Information] DLQ empty — no payments to retry.
+2026-08-07T04:15:10.081 [Information] Executed 'Functions.RetryFailedPayments' (Succeeded, Id=95b51bc3-750b-43a0-8b27-c10dc056c0b3, Duration=10079ms)
+2026-08-07T04:20:00.008 [Information] Executing 'Functions.RetryFailedPayments' (Reason='Timer fired at 2026-08-07T04:20:00.0082527+00:00', Id=3884e6d5-5a12-49b4-818f-2fb6cd86d88f)
+2026-08-07T04:20:00.008 [Information] Trigger Details: ScheduleStatus: {"Last":"2026-08-07T04:15:00.0026458+00:00","Next":"2026-08-07T04:20:00+00:00","LastUpdated":"2026-08-07T04:15:00.0026458+00:00"}
+2026-08-07T04:20:00.010 [Information] RetryFailedPayments tick at 08/07/2026 04:20:00. Next: 08/07/2026 04:20:00
+2026-08-07T04:20:10.085 [Information] DLQ empty — no payments to retry.
+2026-08-07T04:20:10.091 [Information] Executed 'Functions.RetryFailedPayments' (Succeeded, Id=3884e6d5-5a12-49b4-818f-2fb6cd86d88f, Duration=10083ms)
+2026-08-07T13:25:14.069 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34379336,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:27.786 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34393053,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:27.798 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34393065,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:27.957 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34393224,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:55.021 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34420288,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:55.246 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34420513,
+  "functionAppContentEditingState": "Unknown"
+}
+2026-08-07T13:25:55.302 [Information] Host Status: {
+  "id": "fa-pmtsvc-rtpsend-prod-eastus",
+  "state": "Running",
+  "version": "4.1052.300.26370",
+  "versionDetails": "4.1052.300+00515b21db39db50346f38f951eceb85fdbd05d4",
+  "platformVersion": "109.0.7.36",
+  "instanceId": "8a9d121c9d8fb192f53a889bf2512ef0ec1812dd1a73065f145bcc785a851b19",
+  "computerName": "wn0xsdwk000NYR",
+  "processUptime": 34420569,
+  "functionAppContentEditingState": "Unknown"
+}
