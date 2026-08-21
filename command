@@ -1,12 +1,3 @@
-RuleFor(x => x.CountryISOCode)
-    .Cascade(CascadeMode.Stop)
-    .NotNull()
-    .NotEmpty()
-    .WithMessage("country code is required")
-    .Length(3).WithMessage("Country code must be exactly 3 characters long")
-    .MustAsync(BeAValidIso3166NumericCode)
-    .WithMessage("Invalid ISO 3166-1 numeric country code");
-
 using FluentValidation;
 using AccountTypeEnum = PaymentServices.RTPSend.Models.Domain.AccountType;
 using PaymentServices.RTPSend.Models.Domain;
@@ -45,5 +36,12 @@ public class SourceAccountValidator : AbstractValidator<SourceAccount>
             .NotNull()
             .IsEnumName(typeof(AccountTypeEnum))
             .WithMessage("Invalid Source AccountType is required and can be one of the following values: S, C, A, B, L");
+
+        // Optional on the source account — unlike destination, where TabaPay
+        // requires it. But when supplied it must be well-formed, so a bad
+        // country code is caught here rather than downstream.
+        RuleFor(x => x.Address!)
+            .SetValidator(new AddressValidator())
+            .When(x => x.Address is not null);
     }
 }
