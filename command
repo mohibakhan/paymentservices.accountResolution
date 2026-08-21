@@ -1,67 +1,72 @@
-using PaymentServices.RTPSend.Models;
-using PaymentServices.RTPSend.Models.Cosmos;
-using PaymentServices.RTPSend.Models.Domain;
-
-namespace PaymentServices.RTPSend.Helpers;
-
-public static class ServiceBusHelper
 {
-    /// <summary>
-    /// Projects the in-memory Cosmos document into the Service Bus envelope.
-    /// AccountType is hardcoded (S/C) to match the legacy contract — downstream
-    /// consumers expect those literal codes regardless of the source-of-truth.
-    /// </summary>
-    public static ServiceBusContentModel CreateServiceBusMessage(
-        EvolvePaymentRequest cosmosDocument,
-        bool success,
-        object? additionalInfo,
-        string? comments) =>
-        new()
-        {
-            EvolveId = cosmosDocument.EvolveId,
-            PaymentReference = cosmosDocument.PaymentReference,
-            SourceAccount = cosmosDocument.SourceAccount is null ? null : new SourceAccount
-            {
-                AccountNumber = cosmosDocument.SourceAccount.AccountNumber,
-                RoutingNumber = cosmosDocument.SourceAccount.RoutingNumber,
-                Name = new AccountName
-                {
-                    First = cosmosDocument.SourceAccount.Name.First,
-                    Last = cosmosDocument.SourceAccount.Name.Last,
-                    Company = cosmosDocument.SourceAccount.Name.Company
-                },
-                AccountType = "S"
-            },
-            DestinationAccount = cosmosDocument.DestinationAccount is null ? null : new DestinationAccount
-            {
-                AccountNumber = cosmosDocument.DestinationAccount.AccountNumber,
-                RoutingNumber = cosmosDocument.DestinationAccount.RoutingNumber,
-                Name = new AccountName
-                {
-                    First = cosmosDocument.DestinationAccount.Name.First,
-                    Last = cosmosDocument.DestinationAccount.Name.Last,
-                    Company = cosmosDocument.DestinationAccount.Name.Company
-                },
-                AccountType = "C"
-            },
-            UltimateDebtor = cosmosDocument.UltimateDebtor is null ? null : new UltimateDebtor
-            {
-                Name = cosmosDocument.UltimateDebtor.Name
-            },
-            CIFNO = cosmosDocument.FintechId,
-            SourceCurrency = cosmosDocument.PaymentCurrency ?? string.Empty,
-            DestCurrency = cosmosDocument.PaymentCurrency ?? string.Empty,
-            Status = cosmosDocument.Status,
-            ValueDate = cosmosDocument.ValueDate,
-            InstructionId = cosmosDocument.InstructionId,
-            OriginalInstructionId = cosmosDocument.OrigInstructionId,
-            PmtHandler = cosmosDocument.DocumentSubType,
-            Amount = cosmosDocument.Amount,
-            Success = success,
-            DocumentType = cosmosDocument.DocumentType ?? string.Empty,
-            AdditionalInfo = additionalInfo,
-            Comments = comments,
-            ClientId = cosmosDocument.ClientId,
-            MerchantId = cosmosDocument.MerchantId
-        };
+    "paymentReference": "b1042eg-2c0g-1948-97au-e8d9i00a7ad8",
+    "sourceAccountId": null,
+    "sourceAccount": {
+        "accountNumber": "9010010000000001",
+        "name": {
+            "company": null,
+            "first": "Earnin",
+            "last": "Merchant"
+        },
+        "address": {
+            "addressLines": [
+                "123 Main Street"
+            ],
+            "city": "Mountain View",
+            "county": null,
+            "countryISOCode": "",
+            "postalCode": "94043",
+            "stateCode": "CA"
+        },
+        "routingNumber": "084009593",
+        "accountType": "S",
+        "debtorBankMemberID": null,
+        "debtorIdOther": null
+    },
+    "destinationAccountId": null,
+    "destinationAccount": {
+        "accountNumber": "900397187386253",
+        "name": {
+            "company": null,
+            "first": "Sarah",
+            "last": "Robinson"
+        },
+        "routingNumber": "101115315",
+        "accountType": "C",
+        "address": {
+            "addressLines": [
+                "123 First Street"
+            ],
+            "city": "Omaha",
+            "county": null,
+            "countryISOCode": "840",
+            "postalCode": "44040",
+            "stateCode": "NE"
+        },
+        "phoneNumber": "4022221144",
+        "creditorAgentTCHMemberID": null,
+        "creditorIdOther": null
+    },
+    "amount": "0.01",
+    "ultimateDebtor": {
+        "name": "ultimate"
+    },
+    "sourceCurrency": null,
+    "paymentCurrency": null,
+    "softDescriptor": {
+        "name": "Earnin",
+        "email": "support@earnin.com",
+        "phone": null,
+        "address": {
+            "addressLines": [
+                "200 Main Street"
+            ],
+            "city": "Palo Alto",
+            "county": "CUY",
+            "countryISOCode": "840",
+            "postalCode": "94301",
+            "stateCode": "CA"
+        }
+    },
+    "remittanceInformation": "money"
 }
