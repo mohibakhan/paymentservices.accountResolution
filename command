@@ -1,72 +1,40 @@
 {
-    "paymentReference": "b1042eg-2c0g-1948-97au-e8d9i00a7ad8",
-    "sourceAccountId": null,
+    "evolveId": "cfba3015-db01-4a9e-8c46-a655567dd07f",
+    "paymentReference": "000014111787323509",
     "sourceAccount": {
         "accountNumber": "9010010000000001",
         "name": {
-            "company": null,
-            "first": "Earnin",
-            "last": "Merchant"
-        },
-        "address": {
-            "addressLines": [
-                "123 Main Street"
-            ],
-            "city": "Mountain View",
-            "county": null,
-            "countryISOCode": "",
-            "postalCode": "94043",
-            "stateCode": "CA"
+            "company": "TabaPay"
         },
         "routingNumber": "084009593",
-        "accountType": "S",
-        "debtorBankMemberID": null,
-        "debtorIdOther": null
+        "accountType": "S"
     },
-    "destinationAccountId": null,
     "destinationAccount": {
-        "accountNumber": "900397187386253",
+        "accountNumber": "111111111",
         "name": {
-            "company": null,
-            "first": "Sarah",
-            "last": "Robinson"
+            "first": "John",
+            "last": "Smith"
         },
-        "routingNumber": "101115315",
-        "accountType": "C",
-        "address": {
-            "addressLines": [
-                "123 First Street"
-            ],
-            "city": "Omaha",
-            "county": null,
-            "countryISOCode": "840",
-            "postalCode": "44040",
-            "stateCode": "NE"
-        },
-        "phoneNumber": "4022221144",
-        "creditorAgentTCHMemberID": null,
-        "creditorIdOther": null
+        "routingNumber": "236070545",
+        "accountType": "C"
     },
-    "amount": "0.01",
+    "status": "FAILED_TABAPAY",
+    "pmtHandler": "TabaPay",
+    "amount": "0.02",
+    "comments": "TabaPay returned non-success. HTTP status: MultiStatus. Response: SC=207 EC=3C5E9E00 transactionID=BUwc8I-VsefFhIscI6yasg network=RTP status=UNKNOWN errors= 000E7740, 81525830",
+    "success": false,
+    "valueDate": "2026-08-21T14:45:10.4260325Z",
+    "sourceCurrency": "840",
+    "destinationCurrency": "840",
+    "cifno": "EAA0617",
+    "documentType": "CreatePayment",
+    "additionalInfo": {
+        "PaymentReference": "000014111787323509",
+        "Status": "FAILED_TABAPAY"
+    },
     "ultimateDebtor": {
-        "name": "ultimate"
+        "name": "Sarah Name"
     },
-    "sourceCurrency": null,
-    "paymentCurrency": null,
-    "softDescriptor": {
-        "name": "Earnin",
-        "email": "support@earnin.com",
-        "phone": null,
-        "address": {
-            "addressLines": [
-                "200 Main Street"
-            ],
-            "city": "Palo Alto",
-            "county": "CUY",
-            "countryISOCode": "840",
-            "postalCode": "94301",
-            "stateCode": "CA"
-        }
-    },
-    "remittanceInformation": "money"
+    "clientId": "Bm0RU8eASGfSxLYJjsG73Q",
+    "merchantId": "1070"
 }
