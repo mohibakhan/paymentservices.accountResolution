@@ -1,40 +1,67 @@
+using PaymentServices.RTPSend.Models;
+using PaymentServices.RTPSend.Models.Cosmos;
+using PaymentServices.RTPSend.Models.Domain;
+
+namespace PaymentServices.RTPSend.Helpers;
+
+public static class ServiceBusHelper
 {
-    "evolveId": "cfba3015-db01-4a9e-8c46-a655567dd07f",
-    "paymentReference": "000014111787323509",
-    "sourceAccount": {
-        "accountNumber": "9010010000000001",
-        "name": {
-            "company": "TabaPay"
-        },
-        "routingNumber": "084009593",
-        "accountType": "S"
-    },
-    "destinationAccount": {
-        "accountNumber": "111111111",
-        "name": {
-            "first": "John",
-            "last": "Smith"
-        },
-        "routingNumber": "236070545",
-        "accountType": "C"
-    },
-    "status": "FAILED_TABAPAY",
-    "pmtHandler": "TabaPay",
-    "amount": "0.02",
-    "comments": "TabaPay returned non-success. HTTP status: MultiStatus. Response: SC=207 EC=3C5E9E00 transactionID=BUwc8I-VsefFhIscI6yasg network=RTP status=UNKNOWN errors= 000E7740, 81525830",
-    "success": false,
-    "valueDate": "2026-08-21T14:45:10.4260325Z",
-    "sourceCurrency": "840",
-    "destinationCurrency": "840",
-    "cifno": "EAA0617",
-    "documentType": "CreatePayment",
-    "additionalInfo": {
-        "PaymentReference": "000014111787323509",
-        "Status": "FAILED_TABAPAY"
-    },
-    "ultimateDebtor": {
-        "name": "Sarah Name"
-    },
-    "clientId": "Bm0RU8eASGfSxLYJjsG73Q",
-    "merchantId": "1070"
+    /// <summary>
+    /// Projects the in-memory Cosmos document into the Service Bus envelope.
+    /// AccountType is hardcoded (S/C) to match the legacy contract — downstream
+    /// consumers expect those literal codes regardless of the source-of-truth.
+    /// </summary>
+    public static ServiceBusContentModel CreateServiceBusMessage(
+        EvolvePaymentRequest cosmosDocument,
+        bool success,
+        object? additionalInfo,
+        string? comments) =>
+        new()
+        {
+            EvolveId = cosmosDocument.EvolveId,
+            PaymentReference = cosmosDocument.PaymentReference,
+            //SourceAccount = cosmosDocument.SourceAccount is null ? null : new SourceAccount
+            //{
+            //    AccountNumber = cosmosDocument.SourceAccount.AccountNumber,
+            //    RoutingNumber = cosmosDocument.SourceAccount.RoutingNumber,
+            //    Name = new AccountName
+            //    {
+            //        First = cosmosDocument.SourceAccount.Name.First,
+            //        Last = cosmosDocument.SourceAccount.Name.Last,
+            //        Company = cosmosDocument.SourceAccount.Name.Company
+            //    },
+            //    AccountType = "S"
+            //},
+            //DestinationAccount = cosmosDocument.DestinationAccount is null ? null : new DestinationAccount
+            //{
+            //    AccountNumber = cosmosDocument.DestinationAccount.AccountNumber,
+            //    RoutingNumber = cosmosDocument.DestinationAccount.RoutingNumber,
+            //    Name = new AccountName
+            //    {
+            //        First = cosmosDocument.DestinationAccount.Name.First,
+            //        Last = cosmosDocument.DestinationAccount.Name.Last,
+            //        Company = cosmosDocument.DestinationAccount.Name.Company
+            //    },
+            //    AccountType = "C"
+            //},
+            //UltimateDebtor = cosmosDocument.UltimateDebtor is null ? null : new UltimateDebtor
+            //{
+            //    Name = cosmosDocument.UltimateDebtor.Name
+            //},
+            //CIFNO = cosmosDocument.FintechId,
+            //SourceCurrency = cosmosDocument.PaymentCurrency ?? string.Empty,
+            //DestCurrency = cosmosDocument.PaymentCurrency ?? string.Empty,
+            Status = cosmosDocument.Status,
+            ValueDate = cosmosDocument.ValueDate,
+            //InstructionId = cosmosDocument.InstructionId,
+            OriginalInstructionId = cosmosDocument.OrigInstructionId,
+            //PmtHandler = cosmosDocument.DocumentSubType,
+            Amount = cosmosDocument.Amount,
+            Success = success,
+            //DocumentType = cosmosDocument.DocumentType ?? string.Empty,
+            //AdditionalInfo = additionalInfo,
+            //Comments = comments,
+            //ClientId = cosmosDocument.ClientId,
+            //MerchantId = cosmosDocument.MerchantId
+        };
 }
