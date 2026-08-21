@@ -1,4 +1,1 @@
-requests
-| where timestamp between (datetime(2026-07-30 00:10:19) .. datetime(2026-07-30 00:40:30))
-| summarize dcount(cloud_RoleInstance) by bin(timestamp, 1m)
-| render timechart
+{"evolveId":"3e520b04-5b6c-4ace-9e81-719522d62082","paymentReference":"000014111787268078","sourceAccount":{"accountNumber":"9010010000000001","name":{"company":"TabaPay"},"routingNumber":"084009593","accountType":"S"},"destinationAccount":{"accountNumber":"111111111","name":{"first":"John","last":"Smith"},"routingNumber":"236070545","accountType":"C"},"status":"FAILED_TABAPAY","pmtHandler":"TabaPay","amount":"0.02","comments":"TabaPay returned non-success. HTTP status: BadRequest. Response: {\u0022SC\u0022:400,\u0022EC\u0022:\u00223C5E1961\u0022,\u0022EM\u0022:\u0022accounts.destinationAccount.owner.address.country\u0022}","success":false,"valueDate":"2026-08-20T23:21:18.6096419Z","sourceCurrency":"840","destinationCurrency":"840","cifno":"EAA0617","documentType":"CreatePayment","additionalInfo":{"PaymentReference":"000014111787268078","Status":"FAILED_TABAPAY"},"ultimateDebtor":{"name":"Sarah Name"},"clientId":"Bm0RU8eASGfSxLYJjsG73Q","merchantId":"1070"}
