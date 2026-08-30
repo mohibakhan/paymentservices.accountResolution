@@ -1,20 +1,5 @@
-Failed to start language worker process for runtime: dotnet-isolated. workerId:16ef8f96-e92b-4869-b97d-cde6620a16b8
-[2026-08-30T14:16:16.473Z] Language Worker Process exited. Pid=29044.
-[2026-08-30T14:16:16.475Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-[2026-08-30T14:16:16.475Z] Removing errored webhost language worker channel for runtime: dotnet-isolated workerId:16ef8f96-e92b-4869-b97d-cde6620a16b8
-[2026-08-30T14:16:16.477Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-[2026-08-30T14:16:16.509Z] A host error has occurred during startup operation 'a01fea8d-6847-4b44-9784-8d4c40cf5ed5'.
-[2026-08-30T14:16:16.511Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-Value cannot be null. (Parameter 'provider')
-Press any key to continue....[2026-08-30T14:16:16.521Z] Failed to stop host instance 'f44156a5-57e7-4b0e-a14d-270a0c912538'.
-[2026-08-30T14:16:16.522Z] Microsoft.Azure.WebJobs.Host: The host has not yet started.
-[2026-08-30T14:16:18.556Z] Failed to start language worker process for runtime: dotnet-isolated. workerId:0832ad6b-9439-43c9-8040-64c302c3cf3d
-[2026-08-30T14:16:18.556Z] Language Worker Process exited. Pid=12184.
-[2026-08-30T14:16:18.558Z] Removing errored webhost language worker channel for runtime: dotnet-isolated workerId:0832ad6b-9439-43c9-8040-64c302c3cf3d
-[2026-08-30T14:16:18.559Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-[2026-08-30T14:16:18.560Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-[2026-08-30T14:16:18.564Z] A host error has occurred during startup operation '06a2992d-6844-4cab-ae33-55da025431f9'.
-[2026-08-30T14:16:18.564Z] Exceeded language worker restart retry count for runtime:dotnet-isolated. Shutting down and proactively recycling the Functions Host to recover
-[2026-08-30T14:16:18.565Z] Microsoft.Azure.WebJobs.Script.Grpc: C:\Program Files\dotnet\dotnet.exe exited with code -2147450730 (0x80008096). https://aka.ms/dotnet/app-launch-failed.
-[2026-08-30T14:16:18.568Z] Failed to stop host instance '7ee77b02-7819-4bcc-8baa-b447daf169e4'.
-[2026-08-30T14:16:18.569Z] Microsoft.Azure.WebJobs.Host: The host has not yet started.
+Microsoft.AspNetCore.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App]
+Microsoft.NETCore.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
+Microsoft.NETCore.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
+Microsoft.WindowsDesktop.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
+Microsoft.WindowsDesktop.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
