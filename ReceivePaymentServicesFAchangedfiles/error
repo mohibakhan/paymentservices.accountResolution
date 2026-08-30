@@ -1,1 +1,62 @@
-9900004670
+[
+    {
+        "id": "9900004670-receive-monthly",
+        "description": "9900004670 Monthly Limit RTP Receive",
+        "partitionKey": "9900004670",
+        "limitType": "Monthly",
+        "category": "Receive",
+        "amountLimit": 500000,
+        "currency": "USD",
+        "lastUpdated": "2026-08-30T14:01:09.7633518Z",
+        "currentCycleTotal": 0.5,
+        "currentCycleBegan": "2026-08-01T00:00:00"
+    },
+    {
+        "id": "9900004670-receive-weekly",
+        "description": "9900004670 Weekly Limit RTP Receive",
+        "partitionKey": "9900004670",
+        "limitType": "Weekly",
+        "category": "Receive",
+        "amountLimit": 200000,
+        "currency": "USD",
+        "lastUpdated": "2026-08-30T14:01:09.8301237Z",
+        "currentCycleTotal": 0.1,
+        "currentCycleBegan": "2026-08-24T00:00:00Z"
+    },
+    {
+        "id": "9900004670-receive-peritem",
+        "description": "9900004670 Item Limit RTP Receive",
+        "partitionKey": "9900004670",
+        "limitType": "PerItem",
+        "category": "Receive",
+        "amountLimit": 10000,
+        "currency": "USD",
+        "lastUpdated": "2026-08-30T14:01:09.8902591Z",
+        "currentCycleTotal": 25.2,
+        "currentCycleBegan": "0001-01-01T00:00:00"
+    },
+    {
+        "id": "9900004670-receive-daily",
+        "description": "9900004670 Daily Limit RTP Receive",
+        "partitionKey": "9900004670",
+        "limitType": "Daily",
+        "category": "Receive",
+        "amountLimit": 50000,
+        "currency": "USD",
+        "lastUpdated": "2026-08-30T14:01:09.9490478Z",
+        "currentCycleTotal": 0.1,
+        "currentCycleBegan": "2026-08-30T00:00:00Z"
+    },
+    {
+        "id": "c47a91d5-2e83-4f6b-b0d9-58c3a7e12f46",
+        "description": "9900004670_Receive_PerItem",
+        "partitionKey": "9900004670",
+        "limitType": "PerItem",
+        "category": "Receive",
+        "amountLimit": 900,
+        "currency": "USD",
+        "lastUpdated": "2026-08-30T14:01:10.0113336Z",
+        "currentCycleTotal": 25.2,
+        "currentCycleBegan": "0001-01-01T00:00:00"
+    }
+]
