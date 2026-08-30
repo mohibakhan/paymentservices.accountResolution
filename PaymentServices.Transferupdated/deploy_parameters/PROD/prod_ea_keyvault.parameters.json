@@ -1,0 +1,8 @@
+{
+  "transfer:AppSettings:COSMOS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-prod-eastus.vault.azure.net/secrets/COSMOS-PAYMENT-CONNSTRING"
+  },
+  "transfer:AppSettings:SERVICE_BUS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-prod-eastus.vault.azure.net/secrets/SERVICE-BUS-CONNSTRING"
+  }
+}

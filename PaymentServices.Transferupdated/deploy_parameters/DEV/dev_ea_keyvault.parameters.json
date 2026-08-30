@@ -1,0 +1,8 @@
+{
+  "transfer:AppSettings:COSMOS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/TRANSFER-COSMOS-CONNSTRING"
+  },
+  "transfer:AppSettings:SERVICE_BUS_CONNSTRING": {
+    "uri": "https://kv-pmtsvc-dev-centralus.vault.azure.net/secrets/TRANSFER-SERVICE-BUS-CONNSTRING"
+  }
+}
