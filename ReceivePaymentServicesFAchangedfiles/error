@@ -1,5 +1,6 @@
-Microsoft.AspNetCore.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App]
-Microsoft.NETCore.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
-Microsoft.NETCore.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
-Microsoft.WindowsDesktop.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
-Microsoft.WindowsDesktop.App 10.0.5 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
+Warning As Error: Detected package downgrade: Microsoft.Extensions.Azure from 1.7.5 to 1.7.4. Reference the package directly from the project to select a different version. 
+ ReceivePaymentServicesFA -> Microsoft.Azure.Functions.Worker.Extensions.ServiceBus 5.22.0 -> Microsoft.Extensions.Azure (>= 1.7.5) 
+ ReceivePaymentServicesFA -> Microsoft.Extensions.Azure (>= 1.7.4)
+Warning As Error: Detected package downgrade: Microsoft.Extensions.Azure from 1.7.5 to 1.7.4. Reference the package directly from the project to select a different version. 
+ ReceivePaymentServicesFAUnitTests -> ReceivePaymentServicesFA -> Microsoft.Azure.Functions.Worker.Extensions.ServiceBus 5.22.0 -> Microsoft.Extensions.Azure (>= 1.7.5) 
+ ReceivePaymentServicesFAUnitTests -> ReceivePaymentServicesFA -> Microsoft.Extensions.Azure (>= 1.7.4)
