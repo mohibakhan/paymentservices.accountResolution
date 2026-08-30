@@ -1,0 +1,229 @@
+using System;
+using Newtonsoft.Json;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using Evolve.Digital.Core.Api;
+using System.Collections.Generic;
+using Microsoft.Azure.Cosmos;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ReceivePaymentServicesFA.Helpers;
+using ReceivePaymentServicesFA.Settings;
+using ReceivePaymentServicesFA.Constants;
+using ReceivePaymentServicesFA.Exceptions;
+using Evolve.Digital.Shared.Models.Payments;
+using ReceivePaymentServicesFA.Models.Request;
+using ReceivePaymentServicesFA.Models.Response;
+using ReceivePaymentServicesFA.Interface.Services;
+using ReceivePaymentServicesFA.Interface.CosmosDataAdapter;
+
+namespace ReceivePaymentServicesFA.Services.Facade.SubSystems;
+
+/// <summary>
+/// Calls Transfer's tptch/receive endpoint — the receive-side replacement for
+/// the prefund-ledger fraud/sanctions check. Transfer runs LIMIT ("Receive"
+/// category) → SCREENING → LEDGER (FBO credit) and reports per-stage flags,
+/// which are written to the cosmos document as granular LIMIT/SCREENING/LEDGER
+/// statusHistory entries — the same history RTPSend records from Transfer's
+/// outcome message.
+/// </summary>
+public class TransferSystem : ApiAdapterBase, ITransferReceiveService
+{
+    protected override string BaseAddress { get { return _appSettings.TRANSFER_BASE_URL; } }
+
+    private readonly IPaymentCosmosDBService _cosmosdB;
+    private readonly AppSettings _appSettings;
+    private readonly IServiceBusMessageService _serviceBusMessageService;
+    private readonly ILogger<TransferSystem> _logger;
+
+    public TransferSystem(
+        IHttpClientFactory clientFactory,
+        IPaymentCosmosDBService cosmosdB,
+        IOptions<AppSettings> appSettings,
+        ILogger<TransferSystem> logger,
+        IServiceBusMessageService serviceBusMessageService) : base(clientFactory)
+    {
+        _cosmosdB = cosmosdB;
+        _appSettings = appSettings.Value;
+        _logger = logger;
+        _serviceBusMessageService = serviceBusMessageService;
+    }
+
+    public async Task<EvolvePaymentRequest> PerformReceiveTransfer(EvolvePaymentRequest cosmosDocument)
+    {
+        bool messageSent = false;
+        try
+        {
+            _logger.LogInformation("Performing transfer checks (limit, screening, ledger credit)");
+
+            var transferRequest = new TransferReceiveRequest()
+            {
+                EvolveId = cosmosDocument.EvolveId,
+                FintechId = cosmosDocument.FintechId,
+                CorrelationId = cosmosDocument.InstructionId,
+                FboAccount = cosmosDocument.FboAccountNumber,
+                Amount = cosmosDocument.Amount
+            };
+
+            _logger.LogInformation($"Json request sent to transfer tptch/receive: {JsonConvert.SerializeObject(transferRequest)}");
+
+            var httpResponse = await SendReceiveTransfer(transferRequest);
+            var msg = await httpResponse?.Content?.ReadAsStringAsync();
+            _logger.LogInformation($"Message content from transfer response: {msg}");
+
+            TransferReceiveResponse transferResponse = null;
+            try
+            {
+                transferResponse = JsonConvert.DeserializeObject<TransferReceiveResponse>(msg);
+            }
+            catch (Exception jsonEx)
+            {
+                _logger.LogError("Failed to deserialize transfer response: {0}", jsonEx.Message);
+            }
+
+            #region FAILURE
+            if (Convert.ToInt16(httpResponse.StatusCode) != StatusCodes.Status200OK ||
+                transferResponse == null ||
+                transferResponse.Status != TransferReceiveResponse.StatusCompleted)
+            {
+                int transferStatusCode = (int)httpResponse.StatusCode;
+                _logger.LogError("StatusCode and Message from Transfer - Unsuccessful response ({0}): {1}", transferStatusCode, msg);
+
+                // A 200/REJECTED is a terminal business rejection (limit or
+                // screening denied). Anything else is an unexpected failure.
+                bool isBusinessRejection = transferStatusCode == StatusCodes.Status200OK &&
+                    transferResponse?.Status == TransferReceiveResponse.StatusRejected;
+
+                // Per-stage history: COMPLETED for each stage Transfer reported
+                // as passed, FAILED for the first stage that did not pass.
+                await PatchStageHistoryAsync(cosmosDocument, transferResponse,
+                    isFailure: true, failureReason: transferResponse?.Reason ?? msg);
+
+                // Send message to service bus
+                cosmosDocument.Status = isBusinessRejection
+                    ? RequestStatus.REJECTED.ToString()
+                    : RequestStatus.FAILED.ToString();
+                var serviceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(cosmosDocument, false,
+                    new { message = msg, statusCode = httpResponse.StatusCode }, null);
+                await _serviceBusMessageService.SendMessageToServiceBusAsync(serviceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
+                messageSent = true;
+
+                if (isBusinessRejection)
+                {
+                    throw new TransferException(
+                        $"Transfer checks failed at {transferResponse.FailedStage}. Reason: {transferResponse.Reason}",
+                        isBusinessRejection: true,
+                        failedStage: transferResponse.FailedStage);
+                }
+
+                throw new TransferException(
+                    $"Internal Error. Error response {msg}. Status Code {transferStatusCode}",
+                    isBusinessRejection: false,
+                    failedStage: transferResponse?.FailedStage);
+            }
+            #endregion
+
+            #region SUCCESS
+
+            // All three stages passed — write LIMIT/SCREENING/LEDGER COMPLETED
+            // statusHistory entries in a single patch, like RTPSend does.
+            await PatchStageHistoryAsync(cosmosDocument, transferResponse, isFailure: false, failureReason: null);
+
+            // Persist the gluId of the credit entry and the ledger entry
+            // pointer (ledgerEntryId + ledgerId) so the final TCH status can be
+            // reported back to Transfer's tptch/status endpoint later.
+            var pointerOperations = new List<PatchOperation>()
+            {
+                PatchOperation.Replace($"/gluId", transferResponse.GluId),
+                PatchOperation.Replace($"/gluId_d", transferResponse.GluId),
+                PatchOperation.Set($"/ledgerEntryId", transferResponse.LedgerEntryId),
+                PatchOperation.Set($"/ledgerId", transferResponse.LedgerId)
+            };
+            cosmosDocument = await _cosmosdB.PatchItemAsync(cosmosDocument, pointerOperations);
+
+            #endregion
+
+            return cosmosDocument;
+        }
+        catch (TransferException)
+        {
+            // Already recorded + service bus message sent above.
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (!messageSent)
+            {
+                _logger.LogInformation("Sending message to service bus");
+                cosmosDocument.Status = RequestStatus.FAILED.ToString();
+                var serviceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(cosmosDocument, false,
+                    new { message = ex.Message }, null);
+                await _serviceBusMessageService.SendMessageToServiceBusAsync(serviceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
+            }
+
+            // No per-stage flags available (e.g. transport error) — record the
+            // first stage as FAILED, mirroring RTPSend's handling when no stage
+            // flag is set on the outcome.
+            await PatchStageHistoryAsync(cosmosDocument, null, isFailure: true,
+                failureReason: $"Transfer call failed: {ex.Message}");
+
+            throw new TransferException(ex.Message, ex.InnerException);
+        }
+    }
+
+    public async Task<HttpResponseMessage> SendReceiveTransfer(TransferReceiveRequest transferReceiveRequest) =>
+            await base.PostAsync(string.Format(_appSettings.TRANSFER_RECEIVE_PATH), transferReceiveRequest, CancellationToken.None);
+
+    /// <summary>
+    /// Turns Transfer's per-stage flags into statusHistory entries, written in
+    /// a SINGLE patch: each passed stage → COMPLETED; on a failure the first
+    /// not-passed stage → FAILED (nothing after it ran). Mirrors RTPSend's
+    /// HandlePaymentOutcome.WriteStageHistoryAsync.
+    /// </summary>
+    private async Task PatchStageHistoryAsync(
+        EvolvePaymentRequest cosmosDocument,
+        TransferReceiveResponse transferResponse,
+        bool isFailure,
+        string failureReason)
+    {
+        var stages = new (bool Passed, string Stage)[]
+        {
+            (transferResponse?.LimitPassed ?? false,     TransferStageConstants.Limit),
+            (transferResponse?.ScreeningPassed ?? false, TransferStageConstants.Screening),
+            (transferResponse?.LedgerPosted ?? false,    TransferStageConstants.Ledger)
+        };
+
+        var entries = new List<(string Stage, RequestStatus Status, object AddInfo)>();
+
+        foreach (var (passed, stage) in stages)
+        {
+            if (passed)
+            {
+                entries.Add((stage, RequestStatus.COMPLETED, new { Message = $"{stage} passed" }));
+                continue;
+            }
+
+            // First not-passed stage. On a failure, record which stage failed.
+            if (isFailure)
+            {
+                entries.Add((stage, RequestStatus.FAILED, new
+                {
+                    Message = $"{stage} failed",
+                    Reason = failureReason
+                }));
+            }
+
+            // Nothing after the first not-passed stage ran.
+            break;
+        }
+
+        var operations = EvolveRequestHelper.GetStageHistoryPatchOperations(entries);
+
+        if (operations.Count == 0)
+            return;
+
+        await _cosmosdB.PatchItemAsync(cosmosDocument, operations);
+    }
+}

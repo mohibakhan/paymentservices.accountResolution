@@ -1,0 +1,21 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "c854e49c-cfdd-4478-931c-761d48200fc2",
+    "rtpReceive:AppSettings:JHA_SEND_URL": "value",
+    "rtpReceive:AppSettings:JHA_SEND_APIKEY": "value",
+    "rtpReceive:AppSettings:JHA_SEND_CLIENT_ID": "value",
+    "rtpReceive:AppSettings:JHA_SEND_MERCHANT_ID": "value",
+    "rtpReceive:AppSettings:RTP_SEND_URL": "value",
+    "rtpReceive:AppSettings:COSMOS_PAYMENT_CONNSTRING": "value",
+    "rtpReceive:AppSettings:COSMOS_PAYMENT_DATABASE": "value",
+    "rtpReceive:AppSettings:COSMOS_PAYMENT_CONTAINER": "value",
+    "rtpReceive:AppSettings:PARTNER_LEDGER_LOOKUP_URL": "value",
+    "rtpReceive:AppSettings:TRANSFER_BASE_URL": "http://localhost:7071",
+    "rtpReceive:AppSettings:TRANSFER_RECEIVE_PATH": "/api/tptch/receive",
+    "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TRAIN": "Digital",
+    "telemetry:APP_INSIGHTS-CUSTOM_PROP_EVOLVE_TEAM": "Services"
+  }
+}
