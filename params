@@ -20,43 +20,60 @@ public sealed class LedgerReservationResult
 {
     public bool Success { get; init; }
 
-    /// <summary>The ledgerEntries document id (what AddEntryAsync returns).</summary>
+    /// <summary>
+    /// The ledgerEntries document id (what AddEntryAsync returns). Together with
+    /// <see cref="LedgerId"/> this is the point key for updating the entry later
+    /// (ILedgerInternalClient.UpdateEntryStatusAsync).
+    /// </summary>
     public string? ReservationId { get; init; }
 
     /// <summary>The ledger's id — the ledgerEntries partition key.</summary>
     public string? LedgerId { get; init; }
 
-    /// <summary>The source ledger balance AFTER this debit posted.</summary>
+    /// <summary>The ledger balance AFTER this entry posted (debit or credit).</summary>
     public decimal? BalanceAfter { get; init; }
 
     public string? Reason { get; init; }
 
-    public static LedgerReservationResult Ok(string reservationId, string ledgerId, decimal balanceAfter) =>
-        new()
-        {
-            Success = true,
-            ReservationId = reservationId,
-            LedgerId = ledgerId,
-            BalanceAfter = balanceAfter
-        };
+    public static LedgerReservationResult Ok(string reservationId, string ledgerId, decimal? balanceAfter = null) =>
+        new() { Success = true, ReservationId = reservationId, LedgerId = ledgerId, BalanceAfter = balanceAfter };
 
     public static LedgerReservationResult Failed(string reason) =>
         new() { Success = false, Reason = reason };
 }
 
+/// <summary>Request to credit funds on the destination (FBO) ledger — RTP receive.</summary>
+public sealed class LedgerCreditRequest
+{
+    public string EvolveId { get; init; } = string.Empty;
+    public string FintechId { get; init; } = string.Empty;
+    public string CorrelationId { get; init; } = string.Empty;
+    public string FboAccountNumber { get; init; } = string.Empty;
+    public string Amount { get; init; } = string.Empty;
+}
+
 /// <summary>
-/// Ledger operations backed by the Evolve.Digital.LedgerService NuGet: resolve the
+/// Ledger operations backed by the Evolve.Digital.LedgerService NuGet.
+/// Mirrors the logic previously in RTPSend's EvolveLedgerService: resolve the
 /// source ledger by account number, NSF-check, then post a single negative
-/// (debit) entry. Source debit only — no destination credit.
+/// (debit) entry — plus the receive-side mirror: resolve the FBO ledger by
+/// account number and post a single positive (credit) entry, no NSF check.
 /// </summary>
 public interface ILedgerService
 {
     Task<LedgerReservationResult> ReserveAsync(LedgerReservationRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Posts a POSITIVE (credit) entry on the FBO ledger for an inbound RTP
+    /// receive. No NSF check — funds are coming in.
+    /// </summary>
+    Task<LedgerReservationResult> CreditAsync(LedgerCreditRequest request, CancellationToken cancellationToken = default);
 }
 
 public sealed class EvolveLedgerService : ILedgerService
 {
     private const string LedgerEntryKind = "tptch.send";
+    private const string ReceiveLedgerEntryKind = "tptch.receive";
 
     private readonly ILedgerInternalClient _ledgerClient;
     private readonly ILogger<EvolveLedgerService> _logger;
@@ -136,6 +153,9 @@ public sealed class EvolveLedgerService : ILedgerService
                 "Ledger entry {EntryId} posted on ledger {LedgerId} for evolveId {EvolveId} amount {Amount}; balanceAfter={BalanceAfter}",
                 entryId, ledger.id, request.EvolveId, -amountDecimal, balanceAfter);
 
+            // Return the entry id and ledger id (together the point key used later
+            // by tptch/status to update the entry's status) plus the post-debit
+            // balance for RTPSend to persist and surface.
             return LedgerReservationResult.Ok(entryId, ledger.id, balanceAfter);
         }
         catch (CosmosException cex)
@@ -153,8 +173,76 @@ public sealed class EvolveLedgerService : ILedgerService
             return LedgerReservationResult.Failed($"AddEntry failed on ledger {ledger.id}: {ex.Message}");
         }
     }
-}
 
+    public async Task<LedgerReservationResult> CreditAsync(
+        LedgerCreditRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!decimal.TryParse(request.Amount, out var amountDecimal))
+        {
+            _logger.LogError("Invalid amount '{Amount}' for evolveId {EvolveId}",
+                request.Amount, request.EvolveId);
+            return LedgerReservationResult.Failed($"Amount '{request.Amount}' is not a valid decimal");
+        }
+
+        var ledger = await _ledgerClient.GetLedgerByAccountAsync(request.FboAccountNumber);
+        if (ledger is null)
+        {
+            _logger.LogError(
+                "Ledger not found for destination account {AccountNumber} (evolveId {EvolveId})",
+                request.FboAccountNumber, request.EvolveId);
+            return LedgerReservationResult.Failed($"Ledger not found for account {request.FboAccountNumber}");
+        }
+
+        // No NSF check — this is an inbound credit; the balance only goes up.
+
+        var metadata = new Dictionary<string, object>
+        {
+            { "gluId", Guid.NewGuid().ToString() },
+            { "Account", request.FboAccountNumber },
+            { "evolveId", request.EvolveId },
+            { "correlationId", request.CorrelationId },
+            { "fintechId", request.FintechId },
+            { "endpoint", ReceiveLedgerEntryKind }
+        };
+
+        var addEntryRequest = new AddEntryRequest(
+            LedgerId: ledger.id,
+            Amount: amountDecimal,            // credit — positive
+            Trace: new { evolveId = request.EvolveId },
+            Kind: ReceiveLedgerEntryKind,
+            Metadata: metadata,
+            IsRemoteAccount: false);
+
+        try
+        {
+            // AddEntryAsync returns the created ledgerEntries document's id.
+            var entryId = await _ledgerClient.AddEntryAsync(addEntryRequest);
+
+            _logger.LogInformation(
+                "Ledger credit entry {EntryId} posted on ledger {LedgerId} for evolveId {EvolveId} amount {Amount}",
+                entryId, ledger.id, request.EvolveId, amountDecimal);
+
+            // Entry id + ledger id together form the point key used later by
+            // tptch/status to update the entry's status.
+            return LedgerReservationResult.Ok(entryId, ledger.id);
+        }
+        catch (CosmosException cex)
+        {
+            _logger.LogError(
+                "CosmosException posting ledger credit: StatusCode={Status} SubStatus={SubStatus} ActivityId={Activity} Message={Message}",
+                cex.StatusCode, cex.SubStatusCode, cex.ActivityId, cex.Message);
+            return LedgerReservationResult.Failed($"Ledger write failed: {cex.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to post ledger credit entry for evolveId {EvolveId} on ledger {LedgerId}",
+                request.EvolveId, ledger.id);
+            return LedgerReservationResult.Failed($"AddEntry failed on ledger {ledger.id}: {ex.Message}");
+        }
+    }
+}
 
 
 using Microsoft.Extensions.Logging;
@@ -172,11 +260,20 @@ public interface ITransferService
 }
 
 /// <summary>
-/// Runs LIMIT → SCREENING → LEDGER (source debit via the Evolve NuGet).
-/// Sets per-stage progress flags on the message as each passes, and after the
-/// ledger debit records the ledger entry pointer (LedgerEntryId + LedgerId) and
-/// the post-debit balance (BalanceAfter) on the message so RTPSend can persist
-/// and surface them. Source debit only — no destination credit.
+/// Runs the checks for a transfer:
+///   1. LIMIT check
+///   2. SCREENING check
+///   3. LEDGER source debit via the Evolve NuGet (NSF terminal)
+///
+/// As each stage passes it sets the corresponding progress flag on the message
+/// (LimitPassed / ScreeningPassed / LedgerPosted), so a failure carries accurate
+/// partial progress for RTPSend's per-stage history.
+///
+/// After the ledger debit it also records the ledger entry pointer on the message
+/// (LedgerEntryId + LedgerId). RTPSend passes these back to Transfer's tptch/status
+/// endpoint, which uses them to update the entry's status once TabaPay resolves.
+///
+/// Destination credit is intentionally NOT performed (source debit only).
 /// </summary>
 public sealed class TransferService : ITransferService
 {
@@ -206,7 +303,7 @@ public sealed class TransferService : ITransferService
             message.EvolveId, message.Amount, message.FintechId);
 
         // ---- LIMIT --------------------------------------------------------
-        var limit = await _limitService.CheckAsync(message, cancellationToken);
+        var limit = await _limitService.CheckAsync(message, LimitCategories.Send, cancellationToken);
         if (!limit.Allowed)
         {
             throw new LimitExceededException(limit.Reason ?? "Limit check denied");
@@ -222,6 +319,8 @@ public sealed class TransferService : ITransferService
         message.ScreeningPassed = true;
 
         // ---- LEDGER (source debit) ---------------------------------------
+        // NSF throws InsufficientFundsException (terminal). Other failures
+        // return a Failed result which we turn into a retryable exception.
         var ledgerResult = await _ledgerService.ReserveAsync(new LedgerReservationRequest
         {
             EvolveId = message.EvolveId,
@@ -238,9 +337,10 @@ public sealed class TransferService : ITransferService
         }
         message.LedgerPosted = true;
 
-        // Ledger entry pointer (id + partition key) + post-debit balance, carried
-        // on the message so RTPSend can persist them and update the entry status /
-        // report the balance once TabaPay resolves.
+        // Ledger entry pointer (id + partition key) + post-debit balance. Carried
+        // on the message so RTPSend can hand the pointer back to tptch/status
+        // (which updates the entry's status once TabaPay resolves) and persist /
+        // surface the balance — no lookup/scan needed anywhere.
         message.LedgerEntryId = ledgerResult.ReservationId;
         message.LedgerId = ledgerResult.LedgerId;
         message.BalanceAfter = ledgerResult.BalanceAfter;
