@@ -1,200 +1,37 @@
-using System;
-using Dapper;
-using System.Linq;
-using Newtonsoft.Json;
-using System.Data.SqlClient;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using ReceivePaymentServicesFA.Settings;
-using ReceivePaymentServicesFA.Helpers;
-using ReceivePaymentServicesFA.Exceptions;
-using Evolve.Digital.Shared.Models.Payments;
-using ReceivePaymentServicesFA.Models.Response;
-using ReceivePaymentServicesFA.Interface.Services;
-using ReceivePaymentServicesFA.Interface.CosmosDataAdapter;
-using ReceivePaymentServicesFA.Constants;
+using FluentValidation;
+using ReceivePaymentServicesFA.Models.Request;
 
-namespace ReceivePaymentServicesFA.Services.Facade.SubSystems;
+namespace ReceivePaymentServicesFA.Validators;
 
-public class PartnerLedgerSystem : IPartnerLedgerRepository
+public class TabaPayRequestValidator : AbstractValidator<TabaPayRequest>
 {
-    private readonly IPaymentCosmosDBService _cosmosdB;
-    private readonly IPartnerLedgerCosmosDBAdapter _db;
-    private readonly AppSettings _appSettings;
-    private readonly IServiceBusMessageService _serviceBusMessageService;
-    private readonly ILogger<PartnerLedgerSystem> _logger;
-
-    public PartnerLedgerSystem(
-        IPaymentCosmosDBService cosmosdB,
-        IPartnerLedgerCosmosDBAdapter db,
-        IOptions<AppSettings> appSettings,
-        IServiceBusMessageService serviceBusMessageService,
-        ILogger<PartnerLedgerSystem> logger)
+    public TabaPayRequestValidator()
     {
-        _cosmosdB = cosmosdB;
-        _db = db;
-        _appSettings = appSettings.Value;
-        _serviceBusMessageService = serviceBusMessageService;
-        _logger = logger;
-    }
+        // Rule for instruction id
+        RuleFor(x => x.InstructionId).Cascade(CascadeMode.Stop).NotNull().NotEmpty().WithMessage("Instruction Id is required");
 
-    public async Task<EvolvePaymentRequest> PerformAccountLookupUpdate(EvolvePaymentRequest request)
-    {
-        // Partner Ledger Lookup
-        var accountNumber = request.DestinationAccount.AccountNumber;
-        PartnerLedgerResponse partnerLedgerResponse;
+        // Rule for original instruction id
+        //RuleFor(x => x.RemittanceInformation.OriginalID).Cascade(CascadeMode.Stop).NotNull().NotEmpty().WithMessage("Remittance Original Id is required");
 
-        try
-        {
-            // Retrieve from partner Ledger collection
-            partnerLedgerResponse = await _db.GetItemAsync(accountNumber);
-
-            // Try retrieving from SQL
-            if (partnerLedgerResponse.ErrorMessage != null)
+        // Rule for instructed amount — digits with at most 2 decimal places
+        // (e.g. 1, 1.5, 1.50 pass; 1.5034, -1, 1.5E2, .5, 1,500 fail)
+        RuleFor(x => x.InstructedAmount)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
+            .NotEmpty()
+            .MaximumLength(18)
+            .Matches(@"^\d+(\.\d{1,2})?$")
+            .WithMessage(x => $"{x.InstructedAmount} is not a valid amount. Amount must be a positive number with at most 2 decimal places")
+            .Custom((x, context) =>
             {
-                _logger.LogInformation($"Error message while retrieving partner ledger information from cosmos: {partnerLedgerResponse.ErrorMessage}");
-                _logger.LogInformation($"Retrieving partner ledger information from SQL DB");
-
-                // SQL is a best-effort fallback here: on a negative response,
-                // an exception, or no row, keep the cosmos lookup result so the
-                // payment is handled on the cosmos outcome (e.g. Invalid V
-                // Account -> AC03 rejection) instead of surfacing a SQL
-                // connectivity error as a 500.
-                var sqlResponse = await TryPartnerLedgerVAccountLookup(accountNumber);
-                if (sqlResponse != null && sqlResponse.ErrorMessage == null)
+                if (!decimal.TryParse(x, out decimal value) || value <= 0)
                 {
-                    partnerLedgerResponse = sqlResponse;
-                    _logger.LogInformation($"Retrieval from SQL successful.  Adding this entry to cosmos db {JsonConvert.SerializeObject(partnerLedgerResponse)}");
-
-                    // Update fboAccounts container with this entry.  Best effort —
-                    // a failed cache write must not fail a successful lookup.
-                    try
-                    {
-                        var response = await _db.CreateItemAsync(partnerLedgerResponse);
-                    }
-                    catch (Exception cacheEx)
-                    {
-                        _logger.LogError($"Failed to cache partner ledger entry in cosmos: Message, StackTrace {cacheEx.Message} {cacheEx.StackTrace}");
-                    }
+                    context.AddFailure($"{x} is not a valid amount. Amount must be greater than 0");
                 }
-                else
-                {
-                    _logger.LogWarning($"SQL fallback unsuccessful for account {accountNumber}. Falling back to cosmos lookup result: {partnerLedgerResponse.ErrorMessage}");
-                }
-            }
-        }
-        catch (CosmosGetException ex)
-        {
-            _logger.LogError($"An exception occured while calling Cosmos Partner Ledger collection: Message, StackTrace {ex.Message} {ex.StackTrace}");
-            _logger.LogInformation($"Retrieving partner ledger information from SQL DB");
+            });
 
-            // Cosmos itself failed, so there is no cosmos result to fall back
-            // to — SQL is the only source here.
-            partnerLedgerResponse = await TryPartnerLedgerVAccountLookup(accountNumber);
-            if (partnerLedgerResponse == null)
-            {
-                var errorMessage = $"Partner ledger lookup failed for account {accountNumber}: cosmos and SQL both unavailable";
-                _logger.LogWarning($"Partner Ledger Lookup was unsuccessful. Error Message : {errorMessage}");
-                var failedDocument = await PatchTransactionStatus(RequestStage.ACCOUNTLOOKUP, RequestStatus.FAILED, errorMessage, request);
+        RuleFor(x => x.Debtor).NotNull().SetValidator(new CreditorDebtorValidator());
 
-                var failedServiceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(failedDocument, false,
-                        new { message = errorMessage }, null);
-                await _serviceBusMessageService.SendMessageToServiceBusAsync(failedServiceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
-
-                throw new PartnerLedgerException(errorMessage);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"An exception occured while calling stored procedure for partner ledger lookup: Message, StackTrace {ex.Message} {ex.StackTrace}");
-            _logger.LogWarning($"Partner Ledger Lookup was unsuccessful. Error Message : {ex.Message}");
-            var document = await PatchTransactionStatus(RequestStage.ACCOUNTLOOKUP, RequestStatus.FAILED, ex.Message, request);
-
-            var serviceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(document, false,
-                    new { message = ex.Message }, null);
-            await _serviceBusMessageService.SendMessageToServiceBusAsync(serviceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
-
-            throw new PartnerLedgerException(ex.Message);
-        }
-        if (partnerLedgerResponse.ErrorMessage != null)
-        {
-            _logger.LogWarning($"Partner Ledger Lookup was unsuccessful. Error Message : {partnerLedgerResponse.ErrorMessage}");
-            var document = await PatchTransactionStatus(RequestStage.ACCOUNTLOOKUP, RequestStatus.FAILED, partnerLedgerResponse.ErrorMessage, request);
-
-            var serviceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(document, false,
-                    new { message = partnerLedgerResponse.ErrorMessage }, null);
-            await _serviceBusMessageService.SendMessageToServiceBusAsync(serviceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
-
-            throw new PartnerLedgerException(partnerLedgerResponse.ErrorMessage);
-        }
-
-        // Check if account is not active - either closed or blocked
-        if (partnerLedgerResponse.AccountStatus == "CLOSED" || partnerLedgerResponse.AccountStatus == "BLOCKED")
-        {
-            // Partner Ledger Update
-            var document = await PatchTransactionStatus(RequestStage.ACCOUNTLOOKUP, RequestStatus.REJECTED, $"Creditor Account Status: {partnerLedgerResponse.AccountStatus}", request);
-
-            var serviceBusMessage = ServiceBusContentHelper.CreateServiceBusMessage(document, false,
-                    new { message = $"Account Status for account {accountNumber}: {partnerLedgerResponse.AccountStatus}" }, null);
-            await _serviceBusMessageService.SendMessageToServiceBusAsync(serviceBusMessage, PaymentRequestConstants.FailureReceiveServiceBusSubject);
-
-            throw new PartnerLedgerException(partnerLedgerResponse.AccountStatus);
-        }
-
-        _logger.LogInformation($"Partner ledger lookup successful. Response {JsonConvert.SerializeObject(partnerLedgerResponse)}");
-
-        // Partner Ledger Update
-        await PatchTransactionStatus(RequestStage.ACCOUNTLOOKUP, RequestStatus.COMPLETED, "PartnerLedgerLookup completed", request);
-
-        var partnerLedgerUpdate = EvolveRequestHelper.SetAccountLookupPatchoperation(partnerLedgerResponse);
-
-        // Update destination account name here and patch
-        if (partnerLedgerResponse.IsBusinessUser)
-        {
-            request.DestinationAccount.Name.Company = request.DestinationAccount.Name.First + request.DestinationAccount.Name.Last;
-
-            var partnerLedgerCompanyUpdate = EvolveRequestHelper.SetCompanyUpdatePatchOperation(request.DestinationAccount.Name.Company, null, null);
-            await _cosmosdB.PatchItemAsync(request, partnerLedgerCompanyUpdate);
-        }
-
-        return await _cosmosdB.PatchItemAsync(request, partnerLedgerUpdate);
-    }
-
-    public async Task<PartnerLedgerResponse> PartnerLedgerVAccountLookup(string vAccount)
-    {
-        _logger.LogInformation($"Executing SP {_appSettings.PARTNER_LEDGER_SPNAME} with vAccount {vAccount}");
-        using SqlConnection sqlConnection = new SqlConnection(_appSettings.PARTNER_LEDGER_SQL_CONNSTRING);
-        string sql = $"exec {_appSettings.PARTNER_LEDGER_SPNAME} @vAccount";
-        var parameters = new { vAccount = vAccount };
-        var partnerLedgerResponse = (await sqlConnection.QueryAsync<PartnerLedgerResponse>(sql, parameters)).FirstOrDefault();
-        _logger.LogInformation($"Response from Partner Ledger Stored procedure {JsonConvert.SerializeObject(partnerLedgerResponse)}");
-        return partnerLedgerResponse;
-    }
-
-    /// <summary>
-    /// SQL lookup that never throws: returns the response, or null when the
-    /// call fails (network/connection error) or returns no row. Callers decide
-    /// the fallback — keep the cosmos result when there is one.
-    /// </summary>
-    private async Task<PartnerLedgerResponse> TryPartnerLedgerVAccountLookup(string vAccount)
-    {
-        try
-        {
-            return await PartnerLedgerVAccountLookup(vAccount);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"SQL partner ledger lookup failed for vAccount {vAccount}: Message, StackTrace {ex.Message} {ex.StackTrace}");
-            return null;
-        }
-    }
-
-    private async Task<EvolvePaymentRequest> PatchTransactionStatus(RequestStage stage, RequestStatus status, string additionalInfo, EvolvePaymentRequest request)
-    {
-        // Patch cosmos item
-        var patchOperationStatus = EvolveRequestHelper.GetStatusPatchOperation(stage, status, additionalInfo);
-
-        return await _cosmosdB.PatchItemAsync(request, patchOperationStatus);
+        RuleFor(x => x.Creditor).NotNull().SetValidator(new CreditorDebtorValidator());
     }
 }
